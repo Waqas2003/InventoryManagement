@@ -1,0 +1,21 @@
+from django.contrib import admin
+from .models import Categories, Customers,Discounts,StockItems,Inventoryadjustments,Items,Pricelists,Purchaseorders,Purchasereceipts,SalesorderDiscounts,Salesorders,Salesordertax,Shipments,Stockmanagement,Taxconfigurations,Users,Vendors,Warehouses # Apne models import karo
+
+admin.site.register(Categories)
+admin.site.register(Customers)
+admin.site.register(Discounts)
+admin.site.register(Inventoryadjustments)
+admin.site.register(Items)
+admin.site.register(Pricelists)
+admin.site.register(Purchaseorders)
+admin.site.register(Purchasereceipts)
+admin.site.register(SalesorderDiscounts)
+admin.site.register(Salesorders)
+admin.site.register(Salesordertax)
+admin.site.register(Shipments)
+admin.site.register(Stockmanagement)
+admin.site.register(Taxconfigurations)
+admin.site.register(Users)
+admin.site.register(Vendors)
+admin.site.register(Warehouses)
+admin.site.register(StockItems)
