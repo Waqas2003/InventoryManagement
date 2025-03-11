@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Categories, Customers, Discounts, Inventoryadjustments, Items, Pricelists, Purchaseorders, Purchasereceipts, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations, Users, Vendors, Warehouses
+from .models import Categories, Customers, Discounts, Inventoryadjustments, Items, Pricelists, Purchaseorders,AuthUser, Purchasereceipts, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations, Vendors, Warehouses
 
 class CategoriesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -76,9 +76,9 @@ class TaxconfigurationsSerializer(serializers.ModelSerializer):
         model = Taxconfigurations
         fields = '__all__'
 
-class UsersSerializer(serializers.ModelSerializer):
+class AuthUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Users
+        model = AuthUser
         fields = '__all__'
 
 class VendorsSerializer(serializers.ModelSerializer):

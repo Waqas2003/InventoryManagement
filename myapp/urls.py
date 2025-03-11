@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CategoriesViewSet, CustomersViewSet, DiscountsViewSet, InventoryadjustmentsViewSet, ItemsViewSet, PricelistsViewSet, PurchaseordersViewSet, PurchasereceiptsViewSet, SalesorderDiscountsViewSet, SalesordersViewSet, SalesordertaxViewSet, ShipmentsViewSet, StockItemsViewSet, StockmanagementViewSet, TaxconfigurationsViewSet, UsersViewSet, VendorsViewSet, WarehousesViewSet
+from .views import LoginView, CategoriesViewSet, CustomersViewSet, DiscountsViewSet, InventoryadjustmentsViewSet, ItemsViewSet, PricelistsViewSet, PurchaseordersViewSet, PurchasereceiptsViewSet, SalesorderDiscountsViewSet, SalesordersViewSet, SalesordertaxViewSet, ShipmentsViewSet, StockItemsViewSet, StockmanagementViewSet, TaxconfigurationsViewSet, AuthUserViewSet, VendorsViewSet, WarehousesViewSet
 
 router = DefaultRouter()
 router.register(r'categories', CategoriesViewSet)
@@ -18,10 +18,11 @@ router.register(r'shipments', ShipmentsViewSet)
 router.register(r'stockitems', StockItemsViewSet)
 router.register(r'stockmanagement', StockmanagementViewSet)
 router.register(r'taxconfigurations', TaxconfigurationsViewSet)
-router.register(r'users', UsersViewSet)
+router.register(r'users', AuthUserViewSet)
 router.register(r'vendors', VendorsViewSet)
 router.register(r'warehouses', WarehousesViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
+    path('login/', LoginView.as_view(), name='login'),
 ]
