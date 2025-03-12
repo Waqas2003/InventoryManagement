@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets,mixins
 from .models import Categories, Customers, Discounts, Inventoryadjustments, Items, Pricelists, Purchaseorders, Purchasereceipts, AuthUser, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations,  Vendors, Warehouses
 from .serializers import CategoriesSerializer, CustomersSerializer, DiscountsSerializer, InventoryadjustmentsSerializer, ItemsSerializer, PricelistsSerializer, PurchaseordersSerializer, PurchasereceiptsSerializer, SalesorderDiscountsSerializer, SalesordersSerializer, SalesordertaxSerializer, ShipmentsSerializer, StockItemsSerializer, StockmanagementSerializer, TaxconfigurationsSerializer, AuthUserSerializer, VendorsSerializer, WarehousesSerializer
 from rest_framework.views import APIView
@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from rest_framework.permissions import IsAuthenticated
 
 class LoginView(APIView):
     def post(self, request):
@@ -33,74 +34,118 @@ class LoginView(APIView):
             return Response({
                 'message': 'Invalid credentials',
             }, status=status.HTTP_401_UNAUTHORIZED)
-class CategoriesViewSet(viewsets.ModelViewSet):
+
+class CustomCreateMixin(mixins.CreateModelMixin):
+    def create(self, request, *args, **kwargs):
+        # Save the data
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        # Return custom response
+        return Response({
+            "status": "success",
+            "message": "Data created successfully"
+        }, status=status.HTTP_201_CREATED)
+
+class CustomDestroyMixin(mixins.DestroyModelMixin):
+    def destroy(self, request, *args, **kwargs):
+        # Delete the data
+        instance = self.get_object()
+        self.perform_destroy(instance)
+
+        # Return custom response
+        return Response({
+            "status": "success",
+            "message": "Data deleted successfully"
+        }, status=status.HTTP_200_OK)
+
+class CategoriesViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Categories.objects.all()
     serializer_class = CategoriesSerializer
+    permission_classes = [IsAuthenticated]
 
-class CustomersViewSet(viewsets.ModelViewSet):
+class CustomersViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Customers.objects.all()
     serializer_class = CustomersSerializer
+    permission_classes = [IsAuthenticated]
 
-class DiscountsViewSet(viewsets.ModelViewSet):
+class DiscountsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Discounts.objects.all()
     serializer_class = DiscountsSerializer
+    permission_classes = [IsAuthenticated]
 
-class InventoryadjustmentsViewSet(viewsets.ModelViewSet):
+class InventoryadjustmentsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Inventoryadjustments.objects.all()
     serializer_class = InventoryadjustmentsSerializer
+    permission_classes = [IsAuthenticated]
 
-class ItemsViewSet(viewsets.ModelViewSet):
+class ItemsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Items.objects.all()
     serializer_class = ItemsSerializer
+    permission_classes = [IsAuthenticated]
 
-class PricelistsViewSet(viewsets.ModelViewSet):
+class PricelistsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Pricelists.objects.all()
     serializer_class = PricelistsSerializer
+    permission_classes = [IsAuthenticated]
 
-class PurchaseordersViewSet(viewsets.ModelViewSet):
+class PurchaseordersViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Purchaseorders.objects.all()
     serializer_class = PurchaseordersSerializer
+    permission_classes = [IsAuthenticated]
 
-class PurchasereceiptsViewSet(viewsets.ModelViewSet):
+class PurchasereceiptsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Purchasereceipts.objects.all()
     serializer_class = PurchasereceiptsSerializer
+    permission_classes = [IsAuthenticated]
 
-class SalesorderDiscountsViewSet(viewsets.ModelViewSet):
+class SalesorderDiscountsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = SalesorderDiscounts.objects.all()
     serializer_class = SalesorderDiscountsSerializer
+    permission_classes = [IsAuthenticated]
 
-class SalesordersViewSet(viewsets.ModelViewSet):
+class SalesordersViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Salesorders.objects.all()
     serializer_class = SalesordersSerializer
-
-class SalesordertaxViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class SalesordertaxViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Salesordertax.objects.all()
     serializer_class = SalesordertaxSerializer
-
-class ShipmentsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class ShipmentsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Shipments.objects.all()
     serializer_class = ShipmentsSerializer
-
-class StockItemsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class StockItemsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = StockItems.objects.all()
     serializer_class = StockItemsSerializer
-
-class StockmanagementViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class StockmanagementViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Stockmanagement.objects.all()
     serializer_class = StockmanagementSerializer
-
-class TaxconfigurationsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class TaxconfigurationsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Taxconfigurations.objects.all()
     serializer_class = TaxconfigurationsSerializer
-
-class AuthUserViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class AuthUserViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = AuthUser.objects.all()
     serializer_class = AuthUserSerializer
-
-class VendorsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class VendorsViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Vendors.objects.all()
     serializer_class = VendorsSerializer
-
-class WarehousesViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+class WarehousesViewSet(CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Warehouses.objects.all()
     serializer_class = WarehousesSerializer
+    permission_classes = [IsAuthenticated]
