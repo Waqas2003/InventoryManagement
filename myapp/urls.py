@@ -1,6 +1,27 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import LoginView, CategoriesViewSet, CustomersViewSet, DiscountsViewSet, InventoryadjustmentsViewSet, ItemsViewSet, PricelistsViewSet, PurchaseordersViewSet, PurchasereceiptsViewSet, SalesorderDiscountsViewSet, SalesordersViewSet, SalesordertaxViewSet, ShipmentsViewSet, StockItemsViewSet, StockmanagementViewSet, TaxconfigurationsViewSet, AuthUserViewSet, VendorsViewSet, WarehousesViewSet
+from .views import (
+    LoginView,
+    CategoriesViewSet,
+    CustomersViewSet,
+    DiscountsViewSet,
+    InventoryadjustmentsViewSet,
+    ItemsViewSet,
+    PricelistsViewSet,
+    PurchaseordersViewSet,
+    PurchasereceiptsViewSet,
+    SalesorderDiscountsViewSet,
+    SalesordersViewSet,
+    SalesordertaxViewSet,
+    ShipmentsViewSet,
+    StockItemsViewSet,
+    StockmanagementViewSet,
+    TaxconfigurationsViewSet,
+    AuthUserViewSet,
+    VendorsViewSet,
+    WarehousesViewSet,
+    CustomTokenRefreshView,  # Import the custom refresh view
+)
 
 router = DefaultRouter()
 router.register(r'categories', CategoriesViewSet)
@@ -24,5 +45,6 @@ router.register(r'warehouses', WarehousesViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),  # Use the custom view
     path('login/', LoginView.as_view(), name='login'),
 ]

@@ -15,8 +15,8 @@ class AuthGroup(models.Model):
     name = models.CharField(unique=True, max_length=150)
 
     class Meta:
-        managed = False
-        db_table = 'auth_group'
+        
+        db_table = 'AuthGroup'
 
 
 class AuthGroupPermissions(models.Model):
@@ -25,8 +25,8 @@ class AuthGroupPermissions(models.Model):
     permission = models.ForeignKey('AuthPermission', models.DO_NOTHING)
 
     class Meta:
-        managed = False
-        db_table = 'auth_group_permissions'
+        
+        db_table = 'AuthGroupPermissions'
         unique_together = (('group', 'permission'),)
 
 
@@ -36,8 +36,8 @@ class AuthPermission(models.Model):
     codename = models.CharField(max_length=100)
 
     class Meta:
-        managed = False
-        db_table = 'auth_permission'
+        
+        db_table = 'AuthPermission'
         unique_together = (('content_type', 'codename'),)
 
 
@@ -54,8 +54,8 @@ class AuthUser(models.Model):
     date_joined = models.DateTimeField()
 
     class Meta:
-        managed = False
-        db_table = 'auth_user'
+        
+        db_table = 'AuthUser'
         verbose_name_plural = "Users"
 
 
@@ -70,8 +70,8 @@ class AuthUserGroups(models.Model):
     group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
 
     class Meta:
-        managed = False
-        db_table = 'auth_user_groups'
+        
+        db_table = 'AuthUserGroups'
         unique_together = (('user', 'group'),)
 
 
@@ -81,24 +81,30 @@ class AuthUserUserPermissions(models.Model):
     permission = models.ForeignKey(AuthPermission, models.DO_NOTHING)
 
     class Meta:
-        managed = False
-        db_table = 'auth_user_user_permissions'
+        
+        db_table = 'AuthUserUserPermissions'
         unique_together = (('user', 'permission'),)
 
-
 class Categories(models.Model):
-    category_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     category_name = models.CharField(max_length=255)
     category_desc = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'categories'
-        verbose_name_plural = "Categories"
+    parent = models.ForeignKey(
+        'self',  # Self-referential relationship
+        on_delete=models.CASCADE,  # If a parent category is deleted, delete all subcategories
+        blank=True, 
+        null=True,
+        related_name='subcategories'  # Allows reverse lookup
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-         return self.category_name
+        return self.category_name
+
+    class Meta:
+        
+        db_table = 'categories'
+        verbose_name_plural = "Categories"
 
 class Customers(models.Model):
     CUSTOMER_TYPES = [
@@ -106,7 +112,7 @@ class Customers(models.Model):
         ('Walkin', 'walkin'),
     ]
 
-    customer_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     customer_name = models.CharField(max_length=255)
     email = models.CharField(unique=True, max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -118,7 +124,7 @@ class Customers(models.Model):
     customer_type = models.CharField(max_length=7, choices=CUSTOMER_TYPES, default='regular')
     
     class Meta:
-        managed = False
+        
         db_table = 'customers'
         verbose_name_plural = "Customers"
 
@@ -134,7 +140,7 @@ class Discounts(models.Model):
         ('Order', 'order'),
     ]
 
-    discount_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     discount_name = models.CharField(max_length=255)
     discount_desc = models.TextField(blank=True, null=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2)
@@ -144,7 +150,7 @@ class Discounts(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     
     class Meta:
-        managed = False
+        
         db_table = 'discounts'
         verbose_name_plural = "Discounts"
 
@@ -162,8 +168,8 @@ class DjangoAdminLog(models.Model):
     user = models.ForeignKey(AuthUser, models.DO_NOTHING)
 
     class Meta:
-        managed = False
-        db_table = 'django_admin_log'
+        
+        db_table = 'DjangoAdminLog'
 
 
 class DjangoContentType(models.Model):
@@ -171,8 +177,8 @@ class DjangoContentType(models.Model):
     model = models.CharField(max_length=100)
 
     class Meta:
-        managed = False
-        db_table = 'django_content_type'
+        
+        db_table = 'DjangoContentType'
         unique_together = (('app_label', 'model'),)
         
 
@@ -183,8 +189,8 @@ class DjangoMigrations(models.Model):
     applied = models.DateTimeField()
 
     class Meta:
-        managed = False
-        db_table = 'django_migrations'
+        
+        db_table = 'DjangoMigrations'
 
 
 class DjangoSession(models.Model):
@@ -193,8 +199,8 @@ class DjangoSession(models.Model):
     expire_date = models.DateTimeField()
 
     class Meta:
-        managed = False
-        db_table = 'django_session'
+        
+        db_table = 'DjangoSession'
 
 
 class Inventoryadjustments(models.Model):
@@ -205,7 +211,7 @@ class Inventoryadjustments(models.Model):
         ('loss', 'loss'),
     ]
 
-    Inventoryadjustments_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     item = models.ForeignKey('Items', models.DO_NOTHING, blank=True, null=True)
     warehouse = models.ForeignKey('Warehouses', models.DO_NOTHING, blank=True, null=True)
     adjustment_type = models.CharField(max_length=9, choices=ADJUSTMENT_TYPE_CHOICES, default='increase')
@@ -215,10 +221,9 @@ class Inventoryadjustments(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'Inventoryadjustments'
         verbose_name_plural = "Inventoryadjustments"       
-
 
 
 class Items(models.Model):
@@ -227,20 +232,28 @@ class Items(models.Model):
         ('Service', 'service'),
     ]
 
-    item_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     item_code = models.CharField(unique=True, max_length=100)
     item_name = models.CharField(max_length=255)
     sku = models.CharField(unique=True, max_length=100)
     category = models.ForeignKey('Categories', models.DO_NOTHING, blank=True, null=True)
-    item_type = models.CharField(max_length=7, choices=ITEM_TYPE_CHOICES, default='product')
+    item_type = models.CharField(max_length=7, choices=ITEM_TYPE_CHOICES, default='Good')  # Fixed default value
     item_desc = models.TextField(blank=True, null=True)
     item_price = models.DecimalField(max_digits=10, decimal_places=2)
     tax = models.ForeignKey('Taxconfigurations', models.DO_NOTHING, blank=True, null=True)
-    discount = models.ForeignKey(Discounts, models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
-    
+    discount = models.ForeignKey('Discounts', models.DO_NOTHING, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)  # Automatically set timestamp on creation
+
+    # New parent field for sub-items
+    parent = models.ForeignKey(
+        'self',  # Self-referencing ForeignKey
+        on_delete=models.SET_NULL,  # If parent is deleted, keep sub-items with parent set to NULL
+        blank=True,
+        null=True,
+        related_name="subitems"  # Allows reverse querying (e.g., parent.subitems.all())
+    )
     class Meta:
-        managed = False
+        
         db_table = 'items'
         verbose_name_plural = "Items"
 
@@ -249,7 +262,7 @@ class Items(models.Model):
 
 
 class Pricelists(models.Model):
-    pricelist_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     pricelist_name = models.CharField(max_length=255)
     pricelist_desc = models.TextField(blank=True, null=True)
     currency = models.CharField(max_length=10)
@@ -257,7 +270,7 @@ class Pricelists(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'pricelists'
         verbose_name_plural = "Pricelists"
 
@@ -274,7 +287,7 @@ class Purchaseorders(models.Model):
         ('Canceled', 'canceled'),
     ]
 
-    purchaseorder_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     purchaseorder_number = models.CharField(db_column='purchaseorder__number', unique=True, max_length=100)  # Field renamed because it contained more than one '_' in a row.
     vendor = models.ForeignKey('Vendors', models.DO_NOTHING, blank=True, null=True)
     Purchaseorders_status = models.CharField(max_length=8, choices=ORDER_STATUS_CHOICES, default='pending')
@@ -284,7 +297,7 @@ class Purchaseorders(models.Model):
     updated_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'Purchaseorders'
         verbose_name_plural = "Purchaseorders"
 
@@ -299,7 +312,7 @@ class Purchasereceipts(models.Model):
         ('Rejected', 'rejected'),
     ]
 
-    purchase_receipt_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     purchaseorder = models.ForeignKey(Purchaseorders, models.DO_NOTHING, blank=True, null=True)
     vendor = models.ForeignKey('Vendors', models.DO_NOTHING, blank=True, null=True)
     received_quantity = models.IntegerField()
@@ -308,19 +321,19 @@ class Purchasereceipts(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     
     class Meta:
-        managed = False
+        
         db_table = 'Purchasereceipts'
         verbose_name_plural = "Purchasereceipts"
 
 
 
 class SalesorderDiscounts(models.Model):
-    salesorder_discount_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     sales_order = models.ForeignKey('Salesorders', models.DO_NOTHING, blank=True, null=True)
     discount = models.ForeignKey(Discounts, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'salesorder_discounts'
         unique_together = (('sales_order', 'discount'),)
         verbose_name_plural = "SalesorderDiscounts"
@@ -335,7 +348,7 @@ class Salesorders(models.Model):
         ('Canceled', 'canceled'),
     ]
 
-    sales_order_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     sales_order_number = models.CharField(unique=True, max_length=100)
     customer = models.ForeignKey('Customers', models.DO_NOTHING, blank=True, null=True)
     order_status = models.CharField(max_length=9, choices=SALES_ORDER_STATUS_CHOICES, default='pending')
@@ -346,7 +359,7 @@ class Salesorders(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'Salesorders'
         verbose_name_plural = "Salesorders"
 
@@ -355,12 +368,12 @@ class Salesorders(models.Model):
 
 
 class Salesordertax(models.Model):
-    salesorder_tax_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     sales_order = models.ForeignKey(Salesorders, models.DO_NOTHING, blank=True, null=True)
     tax = models.ForeignKey('Taxconfigurations', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'salesordertax'
         unique_together = (('sales_order', 'tax'),)
         verbose_name_plural = "Salesordertax"
@@ -374,7 +387,7 @@ class Shipments(models.Model):
         ('Delivered', 'delivered'),
     ]
 
-    shipment_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     shipment_number = models.CharField(unique=True, max_length=100)
     sales_order = models.ForeignKey(Salesorders, models.DO_NOTHING, blank=True, null=True)
     shipments_status  = models.CharField(max_length=9, choices=SHIPMENT_STATUS_CHOICES, default='pending')
@@ -383,7 +396,7 @@ class Shipments(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     
     class Meta:
-        managed = False
+        
         db_table = 'shipments'
         verbose_name_plural = "Shipments"
 
@@ -392,7 +405,7 @@ class Shipments(models.Model):
 
 
 class StockItems(models.Model):
-    stock_item_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     stock = models.ForeignKey('Stockmanagement', models.DO_NOTHING, blank=True, null=True)
     item = models.ForeignKey(Items, models.DO_NOTHING, blank=True, null=True)
     quantity = models.IntegerField()
@@ -401,20 +414,20 @@ class StockItems(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'stock_items'
         verbose_name_plural = "StockItems"
 
 
 
 class Stockmanagement(models.Model):
-    stock_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     stock_code = models.CharField(max_length=255)
     warehouse = models.ForeignKey('Warehouses', models.DO_NOTHING, blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'stockmanagement'
         verbose_name_plural = "Stockmanagement"
 
@@ -427,14 +440,14 @@ class Taxconfigurations(models.Model):
         ('Both', 'both'),
     ]
 
-    tax_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     tax_name = models.CharField(max_length=255)
     rate_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     applies_to = models.CharField(max_length=9, choices=TAX_APPLIES_TO_CHOICES, default='all')
     created_at = models.DateTimeField(blank=True, null=True)
     
     class Meta:
-        managed = False
+        
         db_table = 'taxconfigurations'
         verbose_name_plural = "Taxconfigurations"
         
@@ -443,7 +456,7 @@ class Taxconfigurations(models.Model):
 
 
 class Vendors(models.Model):
-    vendor_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     vendor_name = models.CharField(max_length=255)
     vendor_company_name = models.CharField(max_length=255, blank=True, null=True)
     email = models.CharField(unique=True, max_length=255, blank=True, null=True)
@@ -454,7 +467,7 @@ class Vendors(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'vendors'
         verbose_name_plural = "Vendors"        
 
@@ -463,7 +476,7 @@ class Vendors(models.Model):
 
 
 class Warehouses(models.Model):
-    warehouse_id = models.AutoField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     warehouse_name = models.CharField(max_length=255)
     warehouse_location = models.CharField(max_length=255)
     capacity = models.IntegerField()
@@ -471,7 +484,7 @@ class Warehouses(models.Model):
     user = models.ForeignKey(AuthUser, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        managed = False
+        
         db_table = 'warehouses'
         verbose_name_plural = "Warehouses"        
 

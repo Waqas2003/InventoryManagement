@@ -1,6 +1,21 @@
 from rest_framework import serializers
 from .models import Categories, Customers, Discounts, Inventoryadjustments, Items, Pricelists, Purchaseorders,AuthUser, Purchasereceipts, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations, Vendors, Warehouses
 
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)  # Get the original response data
+
+        # Customize the response format
+        return {
+            "status": "success",
+            "message": "Token refreshed successfully",
+            "data": {
+                "access_token": data["access"]
+            }
+        }
+
 class CategoriesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categories
