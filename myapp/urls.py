@@ -7,7 +7,6 @@ from .views import (
     DiscountsViewSet,
     InventoryadjustmentsViewSet,
     ItemsViewSet,
-    PricelistsViewSet,
     PurchaseordersViewSet,
     PurchasereceiptsViewSet,
     SalesorderDiscountsViewSet,
@@ -20,7 +19,11 @@ from .views import (
     AuthUserViewSet,
     VendorsViewSet,
     WarehousesViewSet,
-    CustomTokenRefreshView,  # Import the custom refresh view
+    CustomTokenRefreshView,
+    SalesReportView, PurchaseReportView,
+    SalesOrderDetailViewSet,
+    AreaViewSet,
+    PlaceOrderViewSet
 )
 
 router = DefaultRouter()
@@ -29,7 +32,6 @@ router.register(r'customers', CustomersViewSet)
 router.register(r'discounts', DiscountsViewSet)
 router.register(r'inventoryadjustments', InventoryadjustmentsViewSet)
 router.register(r'items', ItemsViewSet)
-router.register(r'pricelists', PricelistsViewSet)
 router.register(r'purchaseorders', PurchaseordersViewSet)
 router.register(r'purchasereceipts', PurchasereceiptsViewSet)
 router.register(r'salesorderdiscounts', SalesorderDiscountsViewSet)
@@ -42,9 +44,14 @@ router.register(r'taxconfigurations', TaxconfigurationsViewSet)
 router.register(r'users', AuthUserViewSet)
 router.register(r'vendors', VendorsViewSet)
 router.register(r'warehouses', WarehousesViewSet)
+router.register(r'area', AreaViewSet)
+router.register(r'salesorderdetail', SalesOrderDetailViewSet)
+router.register(r'placeorder', PlaceOrderViewSet, basename='placeorder')
 
 urlpatterns = [
     path('', include(router.urls)),
     path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),  # Use the custom view
     path('login/', LoginView.as_view(), name='login'),
+     path('reports/sales/', SalesReportView.as_view(), name='sales_report'),
+    path('reports/purchases/', PurchaseReportView.as_view(), name='purchase_report'),
 ]
