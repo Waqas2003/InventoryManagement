@@ -245,14 +245,14 @@ class PlaceOrderViewSet(viewsets.ViewSet):
 
                 # Create sales order
                 sales_order = Salesorders(
-                    sales_order_number=f"SO{customer_id}{int(time.time())}",  # Generate unique order number
+                    sales_order_number=f"SO{customer_id}{int(time.time())}", 
                     customer=customer,
                     area=area,
                     order_status='Pending',
-                    total_amount=0,  # Will be updated later
-                    discount=0,  # Will be updated later
-                    tax_amount=0,  # Will be updated later
-                    net_total=0,  # Will be updated later
+                    total_amount=0,  
+                    discount=0,  
+                    tax_amount=0,  
+                    net_total=0, 
                     created_at=timezone.now()
                 )
                 sales_order.save()
@@ -349,15 +349,15 @@ class CustomTokenRefreshView(TokenRefreshView):
 
 class LoginView(APIView):
     def post(self, request):
-        # Get username and password from request
+        
         username = request.data.get('username')
         password = request.data.get('password')
 
-        # Authenticate user
+       
         user = authenticate(username=username, password=password)
 
         if user:
-            # Generate JWT tokens
+            
             refresh = RefreshToken.for_user(user)
             return Response({
                 'status' : 'success',
@@ -369,19 +369,19 @@ class LoginView(APIView):
               
             }, status=status.HTTP_200_OK)
         else:
-            # Invalid credentials
+            
             return Response({
                 'message': 'Invalid credentials',
             }, status=status.HTTP_401_UNAUTHORIZED)
 
 class CustomCreateMixin(mixins.CreateModelMixin):
     def create(self, request, *args, **kwargs):
-        # Save the data
+       
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
 
-        # Return custom response
+        
         return Response({
             "status": "success",
             "message": "Data created successfully"
@@ -389,11 +389,11 @@ class CustomCreateMixin(mixins.CreateModelMixin):
 
 class CustomDestroyMixin(mixins.DestroyModelMixin):
     def destroy(self, request, *args, **kwargs):
-        # Delete the data
+       
         instance = self.get_object()
         self.perform_destroy(instance)
 
-        # Return custom response
+       
         return Response({
             "status": "success",
             "message": "Data deleted successfully"
@@ -402,20 +402,19 @@ class CustomDestroyMixin(mixins.DestroyModelMixin):
 
 class CustomUpdateMixin(mixins.UpdateModelMixin):
     def update(self, request, *args, **kwargs):
-        # Get instance
+       
         instance = self.get_object()
         
-        # Check for extra fields
-        model_fields = [f.name for f in instance._meta.get_fields()]  # Get all model fields
-        extra_fields = set(request.data.keys()) - set(model_fields)  # Find extra fields
+        
+        model_fields = [f.name for f in instance._meta.get_fields()]  
+        extra_fields = set(request.data.keys()) - set(model_fields)  
         
         if extra_fields:
             return Response({
                 "status": "error",
                 "message": f"Invalid fields: {', '.join(extra_fields)}"
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate and update data
+               
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -445,11 +444,11 @@ class CustomersViewSet(CustomCreateMixin,CustomUpdateMixin,CustomDestroyMixin,vi
     serializer_class = CustomersSerializer
     permission_classes = [IsAuthenticated]
 
-class DiscountsViewSet(CustomUpdateMixin,CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
+class DiscountsViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset = Discounts.objects.all()
     serializer_class = DiscountsSerializer
     permission_classes = [IsAuthenticated]
-
+    
 class InventoryadjustmentsViewSet(CustomUpdateMixin,CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = Inventoryadjustments.objects.all()
     serializer_class = InventoryadjustmentsSerializer

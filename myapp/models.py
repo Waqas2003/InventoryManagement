@@ -517,7 +517,7 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.core.exceptions import ValidationError
-
+from django.utils import timezone
 
 
 
@@ -526,11 +526,11 @@ class Categories(models.Model):
     category_name = models.CharField(max_length=255)
     category_desc = models.TextField(blank=True, null=True)
     parent = models.ForeignKey(
-        'self',  # Self-referential relationship
-        on_delete=models.CASCADE,  # If a parent category is deleted, delete all subcategories
+        'self',  
+        on_delete=models.CASCADE,  
         blank=True, 
         null=True,
-        related_name='subcategories'  # Allows reverse lookup
+        related_name='subcategories' 
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -586,6 +586,14 @@ class Discounts(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     
+    # def save(self, *args, **kwargs):
+    #     today = timezone.now().date()
+    #     if self.valid_until < today:
+    #         self.is_active = False
+    #     else:
+    #         self.is_active = True  # Force activate if date is valid
+    #     super().save(*args, **kwargs)
+    
     class Meta:
         
         db_table = 'discounts'
@@ -593,7 +601,6 @@ class Discounts(models.Model):
 
     def __str__(self):
          return self.discount_name
-
 
 
 class Inventoryadjustments(models.Model):
@@ -630,20 +637,20 @@ class Items(models.Model):
     item_name = models.CharField(max_length=255)
     sku = models.CharField(unique=True, max_length=100)
     category = models.ForeignKey('Categories', models.DO_NOTHING, blank=True, null=True)
-    item_type = models.CharField(max_length=7, choices=ITEM_TYPE_CHOICES, default='Good')  # Fixed default value
+    item_type = models.CharField(max_length=7, choices=ITEM_TYPE_CHOICES, default='Good')  
     item_desc = models.TextField(blank=True, null=True)
     item_price = models.DecimalField(max_digits=10, decimal_places=2)
     tax = models.ForeignKey('Taxconfigurations', models.DO_NOTHING, blank=True, null=True)
     discount = models.ForeignKey('Discounts', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)  # Automatically set timestamp on creation
+    created_at = models.DateTimeField(auto_now_add=True)  
 
-    # New parent field for sub-items
+   
     parent = models.ForeignKey(
-        'self',  # Self-referencing ForeignKey
-        on_delete=models.SET_NULL,  # If parent is deleted, keep sub-items with parent set to NULL
+        'self', 
+        on_delete=models.SET_NULL,  
         blank=True,
         null=True,
-        related_name="subitems"  # Allows reverse querying (e.g., parent.subitems.all())
+        related_name="subitems"  
     )
     class Meta:
         
@@ -662,7 +669,7 @@ class Purchaseorders(models.Model):
     ]
 
     id = models.AutoField(primary_key=True)
-    purchaseorder_number = models.CharField(db_column='purchaseorder__number', unique=True, max_length=100)  # Field renamed because it contained more than one '_' in a row.
+    purchaseorder_number = models.CharField(db_column='purchaseorder__number', unique=True, max_length=100)  
     vendor = models.ForeignKey('Vendors', models.DO_NOTHING, blank=True, null=True)
     Purchaseorders_status = models.CharField(max_length=8, choices=ORDER_STATUS_CHOICES, default='pending')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
