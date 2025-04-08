@@ -20,7 +20,9 @@ from .views import (LoginView, CategoriesViewSet, CustomersViewSet,
     SalesReportView, PurchaseReportView,
     SalesOrderDetailViewSet,
     AreaViewSet,
-    PlaceOrderViewSet
+    PlaceOrderViewSet,
+    PurchaseOrder_returnViewSet,
+    salesorder_returnViewSet
 )
 
 router = DefaultRouter()
@@ -43,7 +45,9 @@ router.register(r'vendors', VendorsViewSet)
 router.register(r'warehouses', WarehousesViewSet)
 router.register(r'area', AreaViewSet)
 router.register(r'salesorderdetail', SalesOrderDetailViewSet)
+router.register(r'PurchaseOrder_return',PurchaseOrder_returnViewSet)
 router.register(r'placeorder', PlaceOrderViewSet, basename='placeorder')
+router.register(r'salesorder_return', salesorder_returnViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

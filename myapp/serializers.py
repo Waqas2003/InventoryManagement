@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Categories, Customers, Discounts,SalesOrderDetail, Area, Inventoryadjustments, Items,  Purchaseorders,User, Purchasereceipts, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations, Vendors, Warehouses
+from .models import Categories, salesorder_return, PurchaseOrder_return,salesorder_returndetail, Customers, Discounts,SalesOrderDetail, Area, Inventoryadjustments, Items,  Purchaseorders,User, Purchasereceipts, SalesorderDiscounts, Salesorders, Salesordertax, Shipments, StockItems, Stockmanagement, Taxconfigurations, Vendors, Warehouses
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
@@ -15,6 +15,16 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
                 "access_token": data["access"]
             }
         }
+        
+class PurchaseOrder_returnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseOrder_return
+        fields = '__all__'
+
+class salesorder_returnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = salesorder_return
+        fields = '__all__'
 
 class CategoriesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -75,6 +85,11 @@ class ShipmentsSerializer(serializers.ModelSerializer):
 class StockItemsSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockItems
+        fields = '__all__'
+
+class salesorder_returndetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stockmanagement
         fields = '__all__'
 
 class StockmanagementSerializer(serializers.ModelSerializer):

@@ -93,7 +93,7 @@ WSGI_APPLICATION = 'inventorymanagementdb.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'InventoryManagementDB',  # Apne MySQL ka database name likho
+        'NAME': 'POS_System',  # Apne MySQL ka database name likho
         'USER': 'root',  # MySQL ka username
         'PASSWORD': '3122003',  # MySQL ka password
         'HOST': 'localhost',  # Localhost ya remote server ka IP

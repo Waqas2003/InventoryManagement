@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Categories, Customers,SalesOrderDetail,Discounts,StockItems,Inventoryadjustments,Area,Items,Purchaseorders,Purchasereceipts,SalesorderDiscounts,Salesorders,Salesordertax,Shipments,Stockmanagement,Taxconfigurations,Vendors,Warehouses # Apne models import karo
+from .models import Categories, salesorder_return,salesorder_returndetail,PurchaseOrder_return, Customers,SalesOrderDetail,Discounts,StockItems,Inventoryadjustments,Area,Items,Purchaseorders,Purchasereceipts,SalesorderDiscounts,Salesorders,Salesordertax,Shipments,Stockmanagement,Taxconfigurations,Vendors,Warehouses # Apne models import karo
 
 admin.site.register(Categories)
 admin.site.register(Customers)
@@ -7,9 +7,11 @@ admin.site.register(Discounts)
 admin.site.register(Inventoryadjustments)
 admin.site.register(Items)
 admin.site.register(Purchaseorders)
+admin.site.register(PurchaseOrder_return)
 admin.site.register(Purchasereceipts)
 admin.site.register(SalesorderDiscounts)
 admin.site.register(Salesorders)
+admin.site.register(salesorder_return)
 admin.site.register(Salesordertax)
 admin.site.register(Shipments)
 admin.site.register(Stockmanagement)
@@ -20,3 +22,4 @@ admin.site.register(StockItems)
 # admin.site.register(User)
 admin.site.register(Area)
 admin.site.register(SalesOrderDetail)
+admin.site.register(salesorder_returndetail)
