@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from myapp.models import Discounts  
+from myapp.models import discounts  
 from django.utils import timezone
 
 class Command(BaseCommand):
@@ -9,14 +9,14 @@ class Command(BaseCommand):
         today = timezone.now().date()
         
         # Deactivate expired discounts
-        expired_discounts = Discounts.objects.filter(
+        expired_discounts =discounts.objects.filter(
             valid_until__lt=today,
             is_active=True
         )
         expired_count = expired_discounts.update(is_active=False)
         
         # Activate valid discounts (if they were manually deactivated earlier)
-        valid_discounts = Discounts.objects.filter(
+        valid_discounts = discounts.objects.filter(
             valid_until__gte=today,
             is_active=False
         )
