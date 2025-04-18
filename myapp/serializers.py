@@ -16,11 +16,40 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
             }
         }
 
+# class purchase_order_return_Serializer(serializers.ModelSerializer):
+#     adjustment_ids = serializers.ListField(
+#         child=serializers.IntegerField(),
+#         required=True
+#     )
+
+#     class Meta:
+#         model = purchase_order_return
+#         fields = ['adjustment_ids']
+
+#     def validate_adjustment_ids(self, value):
+#         if not value:
+#             raise serializers.ValidationError("At least one adjustment ID required")
+#         return value
+
 class purchase_order_return_Serializer(serializers.ModelSerializer):
+    adjustment_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=True
+    )
+
     class Meta:
         model = purchase_order_return
-        fields = '__all__'     
+        fields = ['adjustment_ids']
 
+    def validate_adjustment_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one adjustment ID is required")
+        
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Duplicate adjustment IDs are not allowed")
+            
+        return value
+        
 class purchase_order_detail_Serializer(serializers.ModelSerializer):
     class Meta:
         model = purchase_order_detail
@@ -62,11 +91,22 @@ class items_Serializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class purchase_orders_Serializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = purchase_orders
+#         fields = '__all__'
+
 class purchase_orders_Serializer(serializers.ModelSerializer):
+    vendor_id = serializers.IntegerField(required=True)
+    order_details = serializers.ListField(
+        child=serializers.DictField(),
+        required=True
+    )
+
     class Meta:
         model = purchase_orders
-        fields = '__all__'
-
+        exclude = ['total_amount', 'discount', 'tax_amount', 'net_total', 'purchase_order_number']    
+        
 class purchase_receipts_Serializer(serializers.ModelSerializer):
     class Meta:
         model = purchase_receipts
@@ -182,3 +222,4 @@ class place_order_Serializer(serializers.Serializer):
             if not items.objects.filter(id=item_detail.get('item_id')).exists():
                 raise serializers.ValidationError(f"Item with ID {item_detail.get('item_id')} does not exist.")
         return value    
+    

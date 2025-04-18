@@ -4,7 +4,7 @@ from .views import (LoginView, categories_ViewSet, customers_ViewSet,
     discounts_ViewSet,
     inventory_adjustments_ViewSet,
     items_ViewSet,
-    purchase_orders_ViewSet,
+    purchaseordersViewSet,
     purchase_receipts_ViewSet,
     sales_order_discounts_ViewSet,
     sales_orders_ViewSet,
@@ -25,7 +25,6 @@ from .views import (LoginView, categories_ViewSet, customers_ViewSet,
     purchase_order_return_detail_ViewSet,
     sales_order_return_ViewSet,
     purchase_order_detail_ViewSet,
-    # PurchaseOrderDetailSummaryViewSet
 
 )
 
@@ -35,10 +34,9 @@ router.register(r'customers', customers_ViewSet)
 router.register(r'discounts', discounts_ViewSet)
 router.register(r'inventoryadjustments', inventory_adjustments_ViewSet)
 router.register(r'items', items_ViewSet)
-router.register(r'purchaseorders', purchase_orders_ViewSet)
+router.register(r'purchaseorders', purchaseordersViewSet)
 router.register(r'purchase_order_detail', purchase_order_detail_ViewSet)
-# router.register(r'PurchaseOrderDetailSummaryViewSet', PurchaseOrderDetailSummaryViewSet)
-router.register(r'PurchaseOrder_return',purchase_order_return_ViewSet)
+router.register(r'purchase_order_return',purchase_order_return_ViewSet)
 router.register(r'PurchaseOrder_returndetail',purchase_order_return_detail_ViewSet)
 router.register(r'purchasereceipts', purchase_receipts_ViewSet)
 router.register(r'salesorderdiscounts', sales_order_discounts_ViewSet)
