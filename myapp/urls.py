@@ -57,7 +57,7 @@ router.register(r'salesorder_return', sales_order_return_ViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),  # Use the custom view
+    path('refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'), 
     path('login/', LoginView.as_view(), name='login'),
      path('reports/sales/', SalesReportView.as_view(), name='sales_report'),
     path('reports/purchases/', PurchaseReportView.as_view(), name='purchase_report'),

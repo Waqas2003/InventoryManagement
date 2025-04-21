@@ -92,10 +92,9 @@ class inventory_adjustments(models.Model):
         ('Loss', 'loss'),
         ('Unsold_items','unsold_items')
     ]   
-
+    # sales_order = models.ForeignKey("sales-order",on_delete=models.CASCADE, blank= True, null=True)
     id = models.AutoField(primary_key=True)
     item = models.ForeignKey('items', models.PROTECT)  
-    # sales_order_return = models.ForeignKey('sales_order_return', models.PROTECT)
     sales_order_return = models.ForeignKey('sales_order_return', models.PROTECT,null=True,blank=True)
     adjustment_type = models.CharField(max_length=15, choices=adjustment_type_choices, default='return',blank=True, null=True)
     quantity = models.IntegerField()

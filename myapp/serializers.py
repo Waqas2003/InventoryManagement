@@ -79,22 +79,36 @@ class discounts_Serializer(serializers.ModelSerializer):
     class Meta:
         model = discounts
         fields = '__all__'
-
+        
+        
 class inventory_adjustments_Serializer(serializers.ModelSerializer):
     class Meta:
         model = inventory_adjustments
-        fields = '__all__'
+        fields = [
+            'item',
+            'quantity',
+            'adjustment_type',
+            'adjustment_reason',
+            'adjusted_by'
+        ]
+        extra_kwargs = {
+            'item': {'required': True},
+            'quantity': {'required': True, 'min_value': 1},
+            'adjustment_type': {'required': True},
+            'adjusted_by': {'required': True}
+        }
 
+    def validate_adjusted_by(self, value):
+        if not User.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("User does not exist.")
+        return value
+    
+            
 class items_Serializer(serializers.ModelSerializer):
     class Meta:
         model = items
         fields = '__all__'
 
-
-# class purchase_orders_Serializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = purchase_orders
-#         fields = '__all__'
 
 class purchase_orders_Serializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(required=True)

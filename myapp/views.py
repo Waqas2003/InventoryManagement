@@ -502,12 +502,69 @@ class discounts_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin
     queryset = discounts.objects.all()
     serializer_class = discounts_Serializer
     permission_classes = [IsAuthenticated]
-    
-class inventory_adjustments_ViewSet(CustomUpdateMixin,CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
+
+class inventory_adjustments_ViewSet(viewsets.ModelViewSet):
     queryset = inventory_adjustments.objects.all()
     serializer_class = inventory_adjustments_Serializer
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                data = serializer.validated_data
+                item = data['item']
+                quantity = data['quantity']
+                adjustment_type = data['adjustment_type']
+                reason = data.get('adjustment_reason', '')
+                adjusted_by = data['adjusted_by']  # ✅ safe access
+
+                # Validate adjustment type
+                if adjustment_type not in ['Damage', 'Unsold_items']:
+                    return Response(
+                        {'error': 'Only Damage or Unsold_items adjustments are allowed'},
+                        status=400
+                    )
+
+                # Check stock
+                stock = stock_items.objects.get(item=item)
+                if stock.quantity < quantity:
+                    return Response(
+                        {'error': f'Only {stock.quantity} items in stock. Cannot adjust {quantity}.'},
+                        status=400
+                    )
+
+                # Create inventory adjustment
+                inventory_adjustments.objects.create(
+                    item=item,
+                    quantity=quantity,
+                    adjustment_type=adjustment_type,
+                    adjustment_reason=reason,
+                    adjusted_by=adjusted_by,
+                    sales_order_return=None,
+                    created_at=timezone.now(),
+                    is_processed=False
+                )
+
+                # Update stock
+                stock.quantity -= quantity
+                stock.save()
+
+                return Response({
+                    'status': "success",
+                    'message': f'{quantity} units of {item.item_name} removed from stock',
+                    'remaining_stock': stock.quantity
+                }, status=201)
+
+            except stock_items.DoesNotExist:
+                return Response({'error': 'Item not in stock'}, status=400)
+            except Exception as e:
+                return Response({'error': str(e)}, status=400)
+
+        return Response(serializer.errors, status=400)
+
+    
 class items_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = items.objects.all()
     serializer_class = items_Serializer
@@ -544,7 +601,6 @@ class purchase_order_return_ViewSet(viewsets.ModelViewSet):
                 adjustment_ids = data.get('adjustment_ids')
                 created_by = request.user
 
-                # First validate all adjustments before processing
                 valid_adjustments = inventory_adjustments.objects.filter(
                     id__in=adjustment_ids,
                     adjustment_type__in=['Unsold_items', 'Damage'],
@@ -665,12 +721,6 @@ class purchase_order_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomU
     queryset = purchase_order_detail.objects.all()
     serializer_class = purchase_order_detail_Serializer
     permission_classes = [IsAuthenticated]
-
-
-# class PurchaseOrderDetailSummaryViewSet(APIView):
-#     def get(self, request):
-#         total_sales = Salesorders.objects.aggregate(total_sales=models.Sum('total_amount'))
-#         return Response({'total_sales': total_sales['total_sales']})
 
 
 class purchase_receipts_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
