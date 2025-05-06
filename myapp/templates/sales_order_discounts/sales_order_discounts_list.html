@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Sales Order Return Detail{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">Sales Order Return Details</h2>
+        <a href="{% url 'sales_order_return_detail_create' %}" class="btn btn-primary">+ Add New Return Detail</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-dark text-center">
+                    <tr>
+                        <th>ID</th>
+                        <th>Return Sale</th>
+                        <th>Item</th>
+                        <th>Return Quantity</th>
+                        <th>Price per Piece</th>
+                        <th>Subtotal</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-center">
+                    {% for detail in sales_order_return_detail %}
+                    <tr>
+                        <td>{{ detail.id }}</td>
+                        <td>{{ detail.return_sale }}</td>
+                        <td>{{ detail.item }}</td>
+                        <td>{{ detail.return_quantity }}</td>
+                        <td>Rs. {{ detail.price_per_piece }}</td>
+                        <td>Rs. {{ detail.subtotal }}</td>
+                        <td>{{ detail.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <a href="{% url 'sales_order_return_detail_update' detail.id %}" class="btn btn-sm btn-outline-warning me-1">Edit</a>
+                            <a href="{% url 'sales_order_return_detail_delete' detail.id %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-3">No return details found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

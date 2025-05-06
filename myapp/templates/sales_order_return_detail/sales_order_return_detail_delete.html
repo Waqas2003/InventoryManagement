@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Delete Return Detail{% endblock %}
+
+{% block content %}
+<div class="alert alert-danger p-4">
+    <h4 class="alert-heading">Are you sure?</h4>
+    <p>You're about to delete return detail: <strong>{{ object }}</strong></p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        <a href="{% url 'sales_order_return_detail_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

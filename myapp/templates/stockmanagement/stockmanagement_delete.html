@@ -1,0 +1,11 @@
+<!-- templates/stockmanagement/stockmanagement_delete.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Delete Stock</h2>
+<p>Are you sure you want to delete <strong>{{ object.stock_code }}</strong>?</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Yes, delete</button>
+  <a href="{% url 'stockmanagement_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

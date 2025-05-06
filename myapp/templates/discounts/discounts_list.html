@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Discounts List</h2>
+  <a href="{% url 'discounts_create' %}" class="btn btn-success mb-3">Add Discount</a>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Name</th><th>Percentage</th><th>Applies To</th><th>Valid From</th><th>Valid Until</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for discount in discounts %}
+      <tr>
+        <td>{{ discount.discount_name }}</td>
+        <td>{{ discount.discount_percentage }}%</td>
+        <td>{{ discount.applies_to }}</td>
+        <td>{{ discount.valid_from }}</td>
+        <td>{{ discount.valid_until }}</td>
+        <td>
+          <a href="{% url 'discounts_update' discount.id %}" class="btn btn-primary btn-sm">Edit</a>
+          <a href="{% url 'discounts_delete' discount.id %}" class="btn btn-danger btn-sm">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">No discounts found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

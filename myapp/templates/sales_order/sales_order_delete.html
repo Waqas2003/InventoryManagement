@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Delete Sales Order{% endblock %}
+{% block content %}
+<h2>Are you sure you want to delete this order?</h2>
+<p><strong>{{ object.sales_order_number }}</strong></p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Yes, Delete</button>
+    <a href="{% url 'sales_orders_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

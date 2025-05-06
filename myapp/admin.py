@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import categories, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import categories, notification, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 admin.site.register(categories)
 admin.site.register(customers)
 admin.site.register(discounts)
@@ -24,3 +24,4 @@ admin.site.register(stock_items)
 admin.site.register(area)
 admin.site.register(sales_order_detail)
 admin.site.register(sales_order_return_detail)
+admin.site.register(notification)

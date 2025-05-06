@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Inventory Adjustments</h2>
+  <a href="{% url 'inventory_adjustments_create' %}" class="btn btn-success mb-3">Add Adjustment</a>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Item</th><th>Type</th><th>Qty</th><th>By</th><th>Processed</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for adj in inventory_adjustments %}
+      <tr>
+        <td>{{ adj.item }}</td>
+        <td>{{ adj.adjustment_type }}</td>
+        <td>{{ adj.quantity }}</td>
+        <td>{{ adj.adjusted_by }}</td>
+        <td>{{ adj.is_processed }}</td>
+        <td>
+          <a href="{% url 'inventory_adjustments_update' adj.id %}" class="btn btn-primary btn-sm">Edit</a>
+          <a href="{% url 'inventory_adjustments_delete' adj.id %}" class="btn btn-danger btn-sm">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">No inventory adjustments found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

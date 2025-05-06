@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<a href="{% url 'purchase_receipts_create' %}" class="btn btn-primary mb-3">New Receipt</a>
+<table class="table">
+    <thead><tr><th>Vendor</th><th>Qty</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for r in purchase_receipts %}
+        <tr>
+            <td>{{ r.vendor }}</td>
+            <td>{{ r.received_quantity }}</td>
+            <td>{{ r.purchase_receipt_status }}</td>
+            <td>
+                <a href="{% url 'purchase_receipts_update' r.id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'purchase_receipts_delete' r.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

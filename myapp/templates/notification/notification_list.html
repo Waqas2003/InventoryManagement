@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Notifications</h2>
+<a href="{% url 'notification_create' %}" class="btn btn-primary">Add Notification</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Message</th>
+      <th>Item</th>
+      <th>Read</th>
+      <th>Created At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for note in notification %}
+    <tr>
+      <td>{{ note.id }}</td>
+      <td>{{ note.message }}</td>
+      <td>{{ note.item }}</td>
+      <td>{{ note.is_read }}</td>
+      <td>{{ note.created_at }}</td>
+      <td>
+        <a href="{% url 'notification_update' note.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'notification_delete' note.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

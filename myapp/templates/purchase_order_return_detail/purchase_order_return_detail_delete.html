@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Delete Return Detail</h2>
+<p>Are you sure you want to delete?</p>
+<form method="post">{% csrf_token %}
+<button type="submit" class="btn btn-danger">Yes</button>
+<a href="{% url 'purchase_order_return_detail_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

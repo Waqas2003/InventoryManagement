@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Purchase Orders</h2>
+  <a href="{% url 'purchase_orders_create' %}" class="btn btn-success mb-3">Add Purchase Order</a>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Order #</th><th>Vendor</th><th>Status</th><th>Total</th><th>Net Total</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in purchase_orders %}
+      <tr>
+        <td>{{ order.purchase_order_number }}</td>
+        <td>{{ order.vendor }}</td>
+        <td>{{ order.order_status }}</td>
+        <td>{{ order.total_amount }}</td>
+        <td>{{ order.net_total }}</td>
+        <td>
+          <a href="{% url 'purchase_orders_update' order.id %}" class="btn btn-primary btn-sm">Edit</a>
+          <a href="{% url 'purchase_orders_delete' order.id %}" class="btn btn-danger btn-sm">Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">No purchase orders found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

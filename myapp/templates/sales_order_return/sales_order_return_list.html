@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Sales Order Returns</h2>
+<a href="{% url 'sales_order_return_create' %}" class="btn btn-primary">Add Return</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Sales Order</th>
+      <th>Item</th>
+      <th>Return Type</th>
+      <th>Reason</th>
+      <th>Customer</th>
+      <th>Total Refund</th>
+      <th>Created At</th>
+      <th>Created By</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ret in sales_order_return %}
+    <tr>
+      <td>{{ ret.id }}</td>
+      <td>{{ ret.sales_order }}</td>
+      <td>{{ ret.sales_order_detail.item }}</td>
+      <td>{{ ret.return_type }}</td>
+      <td>{{ ret.return_reason }}</td>
+      <td>{{ ret.customer }}</td>
+      <td>{{ ret.total_refund_amount }}</td>
+      <td>{{ ret.created_at }}</td>
+      <td>{{ ret.created_by }}</td>
+      <td>
+        <a href="{% url 'sales_order_return_update' ret.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'sales_order_return_delete' ret.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

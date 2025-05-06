@@ -1,0 +1,33 @@
+<!-- templates/tax_configurations/tax_configurations_list.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Tax Configurations</h2>
+<a href="{% url 'tax_configurations_create' %}" class="btn btn-primary">Add Tax</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Tax Name</th>
+      <th>Rate (%)</th>
+      <th>Applies To</th>
+      <th>Created At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tax in tax_configurations %}
+    <tr>
+      <td>{{ tax.id }}</td>
+      <td>{{ tax.tax_name }}</td>
+      <td>{{ tax.rate_percentage }}</td>
+      <td>{{ tax.applies_to }}</td>
+      <td>{{ tax.created_at }}</td>
+      <td>
+        <a href="{% url 'tax_configurations_update' tax.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'tax_configurations_delete' tax.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

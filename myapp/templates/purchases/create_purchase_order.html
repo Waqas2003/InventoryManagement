@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+{% block title %}Create Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create Purchase Order</h2>
+    <form id="purchaseOrderForm">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="vendors" class="form-label">Select Vendor:</label>
+            <select class="form-select" id="vendors" name="vendors" required>
+                <option value="" selected disabled>-- Select Vendor --</option>
+                {% for vendor in vendors %}
+                    <option value="{{ vendor.id }}">{{ vendor.vendor_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <table class="table table-bordered" id="itemsTable">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Price/Piece</th>
+                    <th>Discount %</th>
+                    <th>Tax %</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dynamically added rows -->
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-secondary mb-3" onclick="addItemRow()">+ Add Item</button>
+
+        <div>
+            <button type="submit" class="btn btn-primary">Submit Purchase Order</button>
+        </div>
+    </form>
+
+    <div id="responseMessage" class="mt-4"></div>
+</div>
+
+<script>
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    function addItemRow() {
+        const rowHtml = `
+            <tr>
+                <td>
+                    <select class="form-select item-id" required>
+                        <option value="" selected disabled>Select Item</option>
+                        {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.item_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="number" class="form-control quantity" value="1" min="1" required></td>
+                <td><input type="number" class="form-control price" value="0" min="0" step="0.01" required></td>
+                <td><input type="number" class="form-control discount" value="0" min="0" max="100" step="0.01"></td>
+                <td><input type="number" class="form-control tax" value="0" min="0" max="100" step="0.01"></td>
+                <td>
+                    <input class="form-control category" list="categoryOptions" placeholder="Type or select category">
+                    <datalist id="categoryOptions">
+                        {% for category in categories %}
+                            <option value="{{ category.category_name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button></td>
+            </tr>
+        `;
+        document.querySelector('#itemsTable tbody').insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function removeRow(button) {
+        button.closest('tr').remove();
+    }
+
+    document.getElementById('purchaseOrderForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const vendorId = document.getElementById('vendors').value;
+        const rows = document.querySelectorAll('#itemsTable tbody tr');
+        const orderDetails = [];
+
+        if (!vendorId) {
+            alert("Please select a vendor.");
+            return;
+        }
+
+        if (rows.length === 0) {
+            alert("Please add at least one item.");
+            return;
+        }
+
+        rows.forEach(row => {
+            orderDetails.push({
+                item_id: row.querySelector('.item-id').value,
+                quantity: parseInt(row.querySelector('.quantity').value),
+                price_per_piece: parseFloat(row.querySelector('.price').value),
+                discount_percentage: parseFloat(row.querySelector('.discount').value),
+                tax_percentage: parseFloat(row.querySelector('.tax').value),
+                category_name: row.querySelector('.category').value || null
+            });
+        });
+
+        const response = await fetch("", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({
+                vendor_id: vendorId,
+                order_details: orderDetails
+            })
+        });
+
+        const result = await response.json();
+        const msg = document.getElementById('responseMessage');
+
+        if (result.success) {
+            msg.innerHTML = `<div class="alert alert-success">✅ ${result.message}<br>PO Number: <strong>${result.order_number}</strong></div>`;
+            document.getElementById('purchaseOrderForm').reset();
+            document.querySelector('#itemsTable tbody').innerHTML = "";
+            addItemRow();
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">❌ ${result.error}</div>`;
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', addItemRow);
+</script>
+{% endblock %}
+
+
+
+{% comment %} {% extends "base.html" %}
+{% block title %}Create Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create Purchase Order</h2>
+    <form id="purchaseOrderForm" method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="vendor" class="form-label">Select Vendor:</label>
+            <select class="form-select" id="vendor" name="vendor" required>
+                <option value="" selected disabled>-- Select Vendor --</option>
+                {% for vendor in vendors %}
+                    <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <table class="table table-bordered" id="itemsTable">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Price/Piece</th>
+                    <th>Discount %</th>
+                    <th>Tax %</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows inserted dynamically -->
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-secondary mb-3" onclick="addItemRow()">+ Add Item</button>
+
+        <div>
+            <button type="submit" class="btn btn-primary">Submit Purchase Order</button>
+        </div>
+    </form>
+
+    <div id="responseMessage" class="mt-4"></div>
+</div>
+
+<script>
+    function addItemRow() {
+        const rowHtml = `
+            <tr>
+                <td>
+                    <select class="form-select item-id" required>
+                        <option value="" selected disabled>Select Item</option>
+                        {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.item_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="number" class="form-control quantity" value="1" min="1" required></td>
+                <td><input type="number" class="form-control price" value="0" min="0" step="0.01" required></td>
+                <td><input type="number" class="form-control discount" value="0" min="0" max="100" step="0.01"></td>
+                <td><input type="number" class="form-control tax" value="0" min="0" max="100" step="0.01"></td>
+                <td><input type="text" class="form-control category" placeholder="Optional"></td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button></td>
+            </tr>
+        `;
+        document.querySelector('#itemsTable tbody').insertAdjacentHTML('beforeend', rowHtml);
+    }
+
+    function removeRow(button) {
+        button.closest('tr').remove();
+    }
+
+    document.getElementById('purchaseOrderForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const vendorId = document.getElementById('vendor').value;
+        const rows = document.querySelectorAll('#itemsTable tbody tr');
+        const orderDetails = [];
+
+        if (!vendorId) {
+            alert("Please select a vendor.");
+            return;
+        }
+
+        if (rows.length === 0) {
+            alert("Please add at least one item.");
+            return;
+        }
+
+        rows.forEach(row => {
+            orderDetails.push({
+                item_id: row.querySelector('.item-id').value,
+                quantity: parseInt(row.querySelector('.quantity').value),
+                price_per_piece: parseFloat(row.querySelector('.price').value),
+                discount_percentage: parseFloat(row.querySelector('.discount').value),
+                tax_percentage: parseFloat(row.querySelector('.tax').value),
+                category_name: row.querySelector('.category').value || null
+            });
+        });
+
+        const response = await fetch("", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                vendor_id: vendorId,
+                order_details: orderDetails
+            })
+        });
+
+        const result = await response.json();
+        const msg = document.getElementById('responseMessage');
+
+        if (result.success) {
+            msg.innerHTML = `<div class="alert alert-success">✅ ${result.message}<br>PO Number: <strong>${result.order_number}</strong></div>`;
+            document.getElementById('purchaseOrderForm').reset();
+            document.querySelector('#itemsTable tbody').innerHTML = "";
+            addItemRow();
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">❌ ${result.error}</div>`;
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        addItemRow();  // Add one initial row on load
+    });
+</script>
+{% endblock %} {% endcomment %}
+
+
+{% comment %} {% extends "base.html" %}
+{% block title %}Create Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Create Purchase Order</h2>
+    <form id="purchaseOrderForm">
+        <div class="mb-3">
+            <label for="vendor" class="form-label">Select Vendor:</label>
+            <select class="form-select" id="vendor" required>
+                <option value="" selected disabled>Select a vendor</option>
+                {% for vendor in vendors %}
+                    <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <table class="table table-bordered" id="itemsTable">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Price/Piece</th>
+                    <th>Discount %</th>
+                    <th>Tax %</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Item rows will be added here -->
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-secondary" onclick="addItemRow()">+ Add Item</button>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Submit Purchase Order</button>
+        </div>
+    </form>
+
+    <div id="responseMessage" class="mt-4"></div>
+</div>
+
+<script>
+    let itemCounter = 1;
+
+    function addItemRow() {
+        const row = `
+            <tr>
+                <td>
+                    <select class="form-select item-id">
+                        {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.item_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="number" class="form-control quantity" value="10" min="1"></td>
+                <td><input type="number" class="form-control price" value="100" step="0.01"></td>
+                <td><input type="number" class="form-control discount" value="5" step="0.01"></td>
+                <td><input type="number" class="form-control tax" value="8" step="0.01"></td>
+                <td><input type="text" class="form-control category" value="General"></td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button></td>
+            </tr>
+        `;
+        document.querySelector('#itemsTable tbody').insertAdjacentHTML('beforeend', row);
+    }
+
+    function removeRow(btn) {
+        btn.closest('tr').remove();
+    }
+
+    document.getElementById('purchaseOrderForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const vendorId = document.getElementById('vendor').value;
+        if (!vendorId) {
+            alert("Please select a vendor");
+            return;
+        }
+
+        const rows = document.querySelectorAll('#itemsTable tbody tr');
+        const orderDetails = [];
+
+        rows.forEach(row => {
+            orderDetails.push({
+                item_id: row.querySelector('.item-id').value,
+                quantity: row.querySelector('.quantity').value,
+                price_per_piece: row.querySelector('.price').value,
+                discount_percentage: row.querySelector('.discount').value,
+                tax_percentage: row.querySelector('.tax').value,
+                category_name: row.querySelector('.category').value
+            });
+        });
+
+        const response = await fetch("", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                vendor_id: vendorId,
+                order_details: orderDetails
+            })
+        });
+
+        const result = await response.json();
+        const messageDiv = document.getElementById('responseMessage');
+
+        if (result.success) {
+            messageDiv.innerHTML = `<div class="alert alert-success">✅ ${result.message}<br>PO Number: <strong>${result.order_number}</strong></div>`;
+            document.getElementById('purchaseOrderForm').reset();
+            document.querySelector('#itemsTable tbody').innerHTML = "";
+        } else {
+            messageDiv.innerHTML = `<div class="alert alert-danger">❌ ${result.error}</div>`;
+        }
+    });
+
+    // Add one pre-filled row initially
+    document.addEventListener('DOMContentLoaded', addItemRow);
+</script>
+{% endblock %} {% endcomment %}
+
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Purchase Order</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f8f9fa;
+            padding: 40px;
+            margin: 0;
+        }
+
+        h2 {
+            color: #343a40;
+        }
+
+        form {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 1000px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .message-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+            color: green;
+        }
+
+        @media screen and (max-width: 768px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            tr {
+                border: 1px solid #ccc;
+                margin-bottom: 10px;
+                padding: 10px;
+                border-radius: 10px;
+                background: #f1f1f1;
+            }
+
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+                text-align: left;
+            }
+
+            td::before {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                width: 45%;
+                font-weight: bold;
+                white-space: nowrap;
+            }
+
+            td:nth-of-type(1)::before { content: "Item ID"; }
+            td:nth-of-type(2)::before { content: "Name"; }
+            td:nth-of-type(3)::before { content: "Qty"; }
+            td:nth-of-type(4)::before { content: "Price/Unit"; }
+            td:nth-of-type(5)::before { content: "Discount (%)"; }
+            td:nth-of-type(6)::before { content: "Tax (%)"; }
+            td:nth-of-type(7)::before { content: "Category"; }
+            td:nth-of-type(8)::before { content: "Action"; }
+        }
+    </style>
+
+    <script>
+        function addRow() {
+            const table = document.getElementById('items-table-body');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" name="item_id" required></td>
+                <td><input type="text" name="item_name"></td>
+                <td><input type="number" name="quantity" min="1" required></td>
+                <td><input type="number" name="price_per_piece" step="0.01" required></td>
+                <td><input type="number" name="discount_percentage" step="0.01"></td>
+                <td><input type="number" name="tax_percentage" step="0.01"></td>
+                <td><input type="text" name="category_name"></td>
+                <td><button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button></td>
+            `;
+            table.appendChild(newRow);
+        }
+
+        function removeRow(button) {
+            button.closest('tr').remove();
+        }
+
+        function prepareData() {
+            const rows = document.querySelectorAll('#items-table-body tr');
+            const orderDetails = [];
+
+            rows.forEach(row => {
+                const inputs = row.querySelectorAll('input');
+                const item = {};
+                inputs.forEach(input => {
+                    item[input.name] = input.value;
+                });
+                orderDetails.push(item);
+            });
+
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'order_details';
+            hiddenInput.value = JSON.stringify(orderDetails);
+            document.getElementById('purchase-form').appendChild(hiddenInput);
+        }
+    </script>
+</head>
+<body>
+    <h2 align="center">Create Purchase Order</h2>
+
+    <form id="purchase-form" method="post" onsubmit="prepareData()">
+        {% csrf_token %}
+
+        {% if messages %}
+            <ul class="message-list">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <label for="vendor_id">Select Vendor:</label>
+        <select name="vendor_id" required>
+            <option value="">-- Select Vendor --</option>
+            {% for vendor in vendors %}
+                <option value="{{ vendor.id }}">{{ vendor.vendor_name }}</option>
+            {% endfor %}
+        </select>
+
+        <h3>Order Items</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item ID</th>
+                    <th>Name</th>
+                    <th>Qty</th>
+                    <th>Price/Unit</th>
+                    <th>Discount (%)</th>
+                    <th>Tax (%)</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="items-table-body">
+                <tr>
+                    <td><input type="text" name="item_id" required></td>
+                    <td><input type="text" name="item_name"></td>
+                    <td><input type="number" name="quantity" min="1" required></td>
+                    <td><input type="number" name="price_per_piece" step="0.01" required></td>
+                    <td><input type="number" name="discount_percentage" step="0.01"></td>
+                    <td><input type="number" name="tax_percentage" step="0.01"></td>
+                    <td><input type="text" name="category_name"></td>
+                    <td><button type="button" class="btn btn-danger" onclick="removeRow(this)">Remove</button></td>
+a                </tr>
+            </tbody>
+        </table>
+
+        <button type="button" class="btn btn-secondary" onclick="addRow()">Add Item</button>
+        <br><br>
+        <button type="submit" class="btn btn-primary">Submit Purchase Order</button>
+    </form>
+</body>
+</html> {% endcomment %}

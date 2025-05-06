@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ view.title }}</h2>
+  <form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{% url 'item_list' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}
+
+{% comment %} {% extends 'base.html' %}
+
+{% block content %}
+  <div class="container">
+    <h2 class="mb-4">{% if form.instance.pk %}Update{% else %}Create{% endif %} Item</h2>
+
+    <form method="post" class="mb-4">
+      {% csrf_token %}
+      <div class="mb-3">
+        {{ form.non_field_errors }}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+              <div class="text-danger">{{ field.errors }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-success">Save</button>
+      <a href="{% url 'item_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+{% endblock %} {% endcomment %}
+
+

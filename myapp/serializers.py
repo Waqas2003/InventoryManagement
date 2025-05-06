@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import categories, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
@@ -7,7 +7,7 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)  
 
-        # Customize the response format
+        
         return {
             "status": "success",
             "message": "Token refreshed successfully",
@@ -15,21 +15,6 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
                 "access_token": data["access"]
             }
         }
-
-# class purchase_order_return_Serializer(serializers.ModelSerializer):
-#     adjustment_ids = serializers.ListField(
-#         child=serializers.IntegerField(),
-#         required=True
-#     )
-
-#     class Meta:
-#         model = purchase_order_return
-#         fields = ['adjustment_ids']
-
-#     def validate_adjustment_ids(self, value):
-#         if not value:
-#             raise serializers.ValidationError("At least one adjustment ID required")
-#         return value
 
 class purchase_order_return_Serializer(serializers.ModelSerializer):
     adjustment_ids = serializers.ListField(
@@ -109,6 +94,11 @@ class items_Serializer(serializers.ModelSerializer):
         model = items
         fields = '__all__'
 
+
+class notification_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = notification
+        fields = '__all__'
 
 class purchase_orders_Serializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(required=True)

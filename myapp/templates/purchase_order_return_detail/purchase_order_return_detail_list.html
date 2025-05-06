@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<a href="{% url 'purchase_order_return_detail_create' %}" class="btn btn-primary mb-3">Add Return Detail</a>
+<table class="table">
+    <thead><tr><th>Return Qty</th><th>Subtotal</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for d in purchase_order_return_detail %}
+        <tr>
+            <td>{{ d.return_quantity }}</td>
+            <td>{{ d.subtotal }}</td>
+            <td>
+                <a href="{% url 'purchase_order_return_detail_update' d.id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'purchase_order_return_detail_delete' d.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

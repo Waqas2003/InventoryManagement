@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Sales Order Details</h2>
+<a href="{% url 'sales_order_detail_create' %}" class="btn btn-primary">Add Sales Order Detail</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Item</th>
+      <th>Order</th>
+      <th>Price/Piece</th>
+      <th>Qty</th>
+      <th>Discounted Price</th>
+      <th>After Discount</th>
+      <th>Tax</th>
+      <th>After Tax</th>
+      <th>Subtotal</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for detail in sales_order_detail %}
+    <tr>
+      <td>{{ detail.id }}</td>
+      <td>{{ detail.item }}</td>
+      <td>{{ detail.sales_order }}</td>
+      <td>{{ detail.price_per_piece }}</td>
+      <td>{{ detail.quantity }}</td>
+      <td>{{ detail.discounted_price }}</td>
+      <td>{{ detail.price_after_discount }}</td>
+      <td>{{ detail.tax_price }}</td>
+      <td>{{ detail.price_after_tax }}</td>
+      <td>{{ detail.sub_total }}</td>
+      <td>
+        <a href="{% url 'sales_order_detail_update' detail.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'sales_order_detail_delete' detail.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

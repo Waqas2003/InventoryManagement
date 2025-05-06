@@ -1,0 +1,11 @@
+<!-- templates/tax_configurations/tax_configurations_form.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>{% if object %}Update{% else %}Add{% endif %} Tax</h2>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-success">Save</button>
+  <a href="{% url 'tax_configurations_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

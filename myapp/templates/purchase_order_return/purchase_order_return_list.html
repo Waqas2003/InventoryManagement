@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<a href="{% url 'purchase_order_return_create' %}" class="btn btn-primary mb-3">New Return</a>
+<table class="table">
+    <thead><tr><th>Vendor</th><th>Refund</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for r in purchase_order_return %}
+        <tr>
+            <td>{{ r.vendor }}</td>
+            <td>{{ r.total_refund_amount }}</td>
+            <td>
+                <a href="{% url 'purchase_order_return_update' r.id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'purchase_order_return_delete' r.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

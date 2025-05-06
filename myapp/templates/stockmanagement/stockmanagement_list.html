@@ -1,0 +1,31 @@
+<!-- templates/stockmanagement/stockmanagement_list.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Stock Management List</h2>
+<a href="{% url 'stockmanagement_create' %}" class="btn btn-primary">Add New Stock</a>
+<table class="table table-bordered mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Stock Code</th>
+      <th>Warehouse</th>
+      <th>Created At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for stock in stockmanagement %}
+    <tr>
+      <td>{{ stock.id }}</td>
+      <td>{{ stock.stock_code }}</td>
+      <td>{{ stock.warehouse }}</td>
+      <td>{{ stock.created_at }}</td>
+      <td>
+        <a href="{% url 'stockmanagement_update' stock.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'stockmanagement_delete' stock.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +34,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'myapp',
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.admin',
@@ -42,16 +45,26 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
+ASGI_APPLICATION= 'inventorymanagementdb.asgi.application'
+CHANNEL_LAYER={
+    "default":{
+        "BACKEND":"channels.layers.InMemoryChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT Authentication
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  
     ],
 }
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access token validity
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Refresh token validity
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    
     'TOKEN_REFRESH_SERIALIZER': 'myapp.serializers.CustomTokenRefreshSerializer',
 }
 
@@ -71,7 +84,8 @@ ROOT_URLCONF = 'inventorymanagementdb.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR,'myapp/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -93,10 +107,10 @@ WSGI_APPLICATION = 'inventorymanagementdb.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pos',  # Apne MySQL ka database name likho
-        'USER': 'root',  # MySQL ka username
-        'PASSWORD': '3122003',  # MySQL ka password
-        'HOST': 'localhost',  # Localhost ya remote server ka IP
+        'NAME': 'pos', 
+        'USER': 'root',  
+        'PASSWORD': '3122003', 
+        'HOST': 'localhost',  
         'PORT': '3306',
     }
 }

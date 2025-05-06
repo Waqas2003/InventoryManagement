@@ -325,8 +325,6 @@ class sales_order_return_detail(models.Model):
         verbose_name_plural = "sales_order_return_detail"
         
 
-
-
 class sales_order_tax(models.Model):
     id = models.AutoField(primary_key=True)
     sales_order = models.ForeignKey('sales_orders', models.DO_NOTHING, blank=True, null=True)
@@ -456,8 +454,8 @@ class sales_order_detail(models.Model):
     quantity = models.IntegerField()
     discounted_price = models.IntegerField()
     price_after_discount = models.IntegerField()
-    tax_price = models.IntegerField()
     price_after_tax = models.IntegerField()
+    tax_price = models.IntegerField()
     sub_total = models.IntegerField()
 
     def __str__(self):
@@ -468,3 +466,17 @@ class sales_order_detail(models.Model):
         db_table = 'sales_order_details'
         verbose_name_plural = "sales_order_detail"        
 
+
+class notification(models.Model):
+    id=models.AutoField(primary_key=True)
+    message = models.TextField(null=True,blank=2)
+    item = models.ForeignKey('Items',on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)        
+
+    class Meta:
+        db_table = 'notification'
+        verbose_name_plural = 'notification'
+        
+    def __str__(self):
+        return f"Notification for {self.item.item_name}"    

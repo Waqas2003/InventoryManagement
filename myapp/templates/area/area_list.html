@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Areas</h2>
+<a href="{% url 'area_create' %}" class="btn btn-primary">Add Area</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Area Name</th>
+      <th>Delivery Charges</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in area %}
+    <tr>
+      <td>{{ a.id }}</td>
+      <td>{{ a.area_name }}</td>
+      <td>{{ a.delivery_charges }}</td>
+      <td>
+        <a href="{% url 'area_update' a.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'area_delete' a.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

@@ -1,0 +1,11 @@
+<!-- templates/tax_configurations/tax_configurations_delete.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Delete Tax</h2>
+<p>Are you sure you want to delete <strong>{{ object.tax_name }}</strong>?</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">Yes, delete</button>
+  <a href="{% url 'tax_configurations_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

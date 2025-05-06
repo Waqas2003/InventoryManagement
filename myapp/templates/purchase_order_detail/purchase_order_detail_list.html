@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Order Details{% endblock %}
+{% block content %}
+<h2>Purchase Order Detail List</h2>
+<a href="{% url 'purchase_order_detail_create' %}" class="btn btn-primary mb-3">Add New</a>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Item</th>
+            <th>Quantity</th>
+            <th>Subtotal</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for detail in purchase_order_detail %}
+        <tr>
+            <td>{{ detail.id }}</td>
+            <td>{{ detail.item }}</td>
+            <td>{{ detail.quantity }}</td>
+            <td>{{ detail.sub_total }}</td>
+            <td>
+                <a href="{% url 'purchase_order_detail_update' detail.id %}" class="btn btn-sm btn-warning">Edit</a>
+                <a href="{% url 'purchase_order_detail_delete' detail.id %}" class="btn btn-sm btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

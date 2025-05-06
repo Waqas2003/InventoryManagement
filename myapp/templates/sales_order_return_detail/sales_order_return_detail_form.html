@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Add / Edit Return Detail{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Return Detail Form</h2>
+<form method="post" class="border p-4 shadow-sm rounded bg-light">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{% url 'sales_order_return_detail_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

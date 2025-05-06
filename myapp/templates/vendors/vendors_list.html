@@ -1,0 +1,39 @@
+<!-- templates/vendors/vendors_list.html -->
+{% extends 'base.html' %}
+{% block content %}
+<h2>Vendors</h2>
+<a href="{% url 'vendors_create' %}" class="btn btn-primary">Add Vendor</a>
+<table class="table mt-3">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Company</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Credit Limit</th>
+      <th>Payables</th>
+      <th>Created At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for vendor in vendors %}
+    <tr>
+      <td>{{ vendor.id }}</td>
+      <td>{{ vendor.vendor_name }}</td>
+      <td>{{ vendor.vendor_company_name }}</td>
+      <td>{{ vendor.email }}</td>
+      <td>{{ vendor.phone }}</td>
+      <td>{{ vendor.credit_limit }}</td>
+      <td>{{ vendor.total_payables }}</td>
+      <td>{{ vendor.created_at }}</td>
+      <td>
+        <a href="{% url 'vendors_update' vendor.id %}" class="btn btn-sm btn-warning">Edit</a>
+        <a href="{% url 'vendors_delete' vendor.id %}" class="btn btn-sm btn-danger">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
