@@ -12,9 +12,6 @@ from .serializers import CustomTokenRefreshSerializer
 from django.db import models
 from rest_framework import status
 from django.core.exceptions import ValidationError
-import time
-from decimal import Decimal
-from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import now
 from django.core.exceptions import ObjectDoesNotExist
@@ -24,6 +21,22 @@ from channels.layers import get_channel_layer
 from django.db.models import Sum, Count,F
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views import View
+import json
+from django.http import JsonResponse
+from decimal import Decimal
+from django.db import transaction
+from django.utils import timezone
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.views import View
+from django.shortcuts import render, redirect
+from django.db import transaction
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+import time
+
+
 
 # class purchaseordersViewSet(viewsets.ModelViewSet):
 #     queryset = purchase_orders.objects.all()
@@ -158,6 +171,7 @@ from django.views import View
 #             except Exception as e:
 #                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # def process_return(request_data, user):
 #     with transaction.atomic():
@@ -878,8 +892,9 @@ from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 
-
-
+# #Dashboard View
+# class DashboardView(TemplateView):
+#     template_name = 'dashboard.html'
 
 
 #Items Crud Views
@@ -953,7 +968,7 @@ class customersUpdateView(UpdateView):
     success_url = reverse_lazy('customers_list')
        
     
-#Discount Crud Views   
+# Discount Crud Views   
 class discountsListView(ListView):
     model = discounts
     template_name = "discounts/discounts_list.html"
@@ -982,11 +997,11 @@ class inventory_adjustmentsListView(ListView):
     template_name = "inventory_adjustments/inventory_adjustments_list.html"
     context_object_name = 'inventory_adjustments'
     
-class inventory_adjustmentsCreateView(CreateView):
-    model = inventory_adjustments
-    template_name = "inventory_adjustments/inventory_adjustments_form.html"
-    fields = '__all__'
-    success_url = reverse_lazy('inventory_adjustments_list')
+# class inventory_adjustmentsCreateView(CreateView):
+#     model = inventory_adjustments
+#     template_name = "inventory_adjustments/inventory_adjustments_form.html"
+#     fields = '__all__'
+#     success_url = reverse_lazy('inventory_adjustments_list')
     
 class inventory_adjustmentsDeleteView(DeleteView):
     model = inventory_adjustments
@@ -1450,14 +1465,6 @@ class notificationDeleteView(DeleteView):
     success_url = reverse_lazy('notification_list')
 
 
-
-from django.shortcuts import render, redirect
-from django.db import transaction
-from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-import time
-
 @transaction.atomic
 def place_order(request):
     if request.method == 'GET':
@@ -1466,7 +1473,8 @@ def place_order(request):
             'customers': customers.objects.all(),
             'areas': area.objects.all(),
             'items': items.objects.all(),
-            'discounts': discounts.objects.filter(is_active=True)
+            'discounts': discounts.objects.filter(is_active=True),
+            # 'tax':tax_configurations.objects.filter(is_active=True)
         }
         return render(request, 'orders/place_order.html', context)
     
@@ -1668,21 +1676,6 @@ class DashboardView(TemplateView):
         return context
 
 
-
-# def order_success(request, order_id):
-#     order = sales_orders.objects.get(id=order_id)
-#     return render(request, 'order_success.html', {'order': order})
-
-
-import json
-from django.http import JsonResponse
-from decimal import Decimal
-from django.db import transaction
-from django.utils import timezone
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.views import View
-
 class PurchaseOrderView(View):
     template_name = 'purchases/create_purchase_order.html'
 
@@ -1828,231 +1821,267 @@ class PurchaseOrderView(View):
                 'success': False,
                 'error': str(e)
             }, status=400)
-        
-# class PurchaseOrderView(View):
-#     template_name = 'purchases/create_purchase_order.html'
-
-#     def get(self, request):
-#         context = {
-#             'vendors': vendors.objects.all(),
-#             'items': items.objects.all(),
-#         }
-#         return render(request, self.template_name, context)
-
-#     @transaction.atomic
-#     def post(self, request):
-#         try:
-#             vendor_id = request.POST.get('vendor_id')
-#             order_details = request.POST.getlist('order_details')  
-
-#             vendor = vendors.objects.get(id=vendor_id)
-
-#             total_amount = Decimal('0')
-#             total_discount = Decimal('0')
-#             total_tax = Decimal('0')
-#             net_total = Decimal('0')
-
-#             purchase_order = purchase_orders.objects.create(
-#                 purchase_order_number=f"PO{vendor_id}{int(time.time())}",
-#                 vendor=vendor,
-#                 order_status='Pending',
-#                 total_amount=0,
-#                 discount=0,
-#                 tax_amount=0,
-#                 net_total=0,
-#                 created_at=timezone.now()
-#             )
-
-#             for detail in order_details:
-#                 item_id = detail.get('item_id')
-#                 item_name = detail.get('item_name', f"Item-{item_id}")
-#                 quantity = int(detail.get('quantity'))
-#                 price_per_piece = Decimal(str(detail.get('price_per_piece')))
-#                 discount_percentage = Decimal(str(detail.get('discount_percentage', 0)))
-#                 tax_percentage = Decimal(str(detail.get('tax_percentage', 0)))
-#                 category_name = detail.get('category_name', 'Uncategorized')
-
-#                 item, item_created = items.objects.get_or_create(
-#                     id=item_id,
-#                     defaults={
-#                         'item_name': item_name,
-#                         'item_code': f"ITEM-{item_id}",
-#                         'sku': f"SKU-{item_id}",
-#                         'item_price': price_per_piece,
-#                         'item_type': 'Good',
-#                         'created_at': timezone.now()
-#                     }
-#                 )
-
-#                 category, _ = categories.objects.get_or_create(
-#                     category_name=category_name,
-#                     defaults={
-#                         'category_desc': f"Auto-created for {item_name}",
-#                         'created_at': timezone.now()
-#                     }
-#                 )
-
-#                 if item_created:
-#                     item.category = category
-#                     item.save()
-
-#                 item_total = price_per_piece * quantity
-#                 discount_amount = item_total * (discount_percentage / Decimal('100'))
-#                 discounted_price = item_total - discount_amount
-#                 tax_amount = discounted_price * (tax_percentage / Decimal('100'))
-#                 sub_total = discounted_price + tax_amount
-
-#                 total_amount += item_total
-#                 total_discount += discount_amount
-#                 total_tax += tax_amount
-#                 net_total += sub_total
-
-#                 purchase_order_detail.objects.create(
-#                     item=item,
-#                     purchase_order=purchase_order,
-#                     quantity=quantity,
-#                     price_per_piece=price_per_piece,
-#                     discounted_price=discounted_price / quantity,
-#                     price_after_discount=discounted_price,
-#                     tax_price=tax_amount,
-#                     price_after_tax=sub_total,
-#                     sub_total=sub_total
-#                 )
-
-#                 if item.item_type == 'Good':
-#                     stock_item, created = stock_items.objects.get_or_create(
-#                         item=item,
-#                         defaults={
-#                             'quantity': quantity,
-#                             'safety_stock_level': 10,
-#                             'last_restocked_at': timezone.now()
-#                         }
-#                     )
-#                     if not created:
-#                         stock_item.quantity += quantity
-#                         stock_item.last_restocked_at = timezone.now()
-#                         stock_item.save()
-
-#             purchase_order.total_amount = total_amount
-#             purchase_order.discount = total_discount
-#             purchase_order.tax_amount = total_tax
-#             purchase_order.net_total = net_total
-#             purchase_order.save()
-
-#             messages.success(request, "Purchase order created successfully.")
-#             return redirect('purchase_order_success') 
-#         except Exception as e:
-#             messages.error(request, f"Error: {str(e)}")
-#             return redirect('create_purchase_order') 
     
+
+
+@transaction.atomic
+def process_return(request):
+    if request.method == 'GET':
+        context = {
+            'sales_orders': sales_orders.objects.all(),
+            'users': User.objects.all(),
+        }
+        return render(request, 'orders/process_return.html', context)
+
+    elif request.method == 'POST':
+        try:
+            # Step 1: Extract form data
+            sales_order_id = request.POST.get('sales_order_id')
+            return_reason = request.POST.get('return_reason')
+            return_type = request.POST.get('return_type')
+            created_by_id = request.POST.get('created_by')
+
+            # Validate basic fields
+            if not all([sales_order_id, return_reason, return_type, created_by_id]):
+                raise ValueError("All fields are required.")
+
+            if return_type not in ['return', 'damage', 'loss']:
+                raise ValueError("Invalid return type selected.")
+
+            # Fetch objects
+            sales_order = sales_orders.objects.get(id=sales_order_id)
+            created_by_user = User.objects.get(id=created_by_id)
+
+            # Extract return details
+            detail_ids = request.POST.getlist('sales_order_detail_id')
+            return_quantities = request.POST.getlist('return_quantity')
+
+            if not detail_ids or not return_quantities or len(detail_ids) != len(return_quantities):
+                raise ValueError("Invalid return details submitted.")
+
+            # Step 2: Create return header
+            return_header = sales_order_return.objects.create(
+                sales_order=sales_order,
+                customer=sales_order.customer,
+                total_refund_amount=0,
+                sales_order_detail=None,  
+                return_type=return_type,
+                return_reason=return_reason,
+                created_at=timezone.now(),
+                created_by=created_by_user
+            )
+
+            total_refund = Decimal('0')
+            first_detail = None
+
+            # Step 3: Process return details
+            for i in range(len(detail_ids)):
+                detail_id = detail_ids[i]
+                return_qty = int(return_quantities[i])
+
+                item_detail = sales_order_detail.objects.get(
+                    id=detail_id, sales_order=sales_order
+                )
+
+                if return_qty > item_detail.quantity:
+                    raise ValueError(f"Return quantity for item {item_detail.item.item_name} exceeds ordered quantity.")
+
+                refund_amount = Decimal(item_detail.price_per_piece) * return_qty
+                total_refund += refund_amount
+
+                sales_order_return_detail.objects.create(
+                    return_sale=return_header,
+                    sales_order_detail=item_detail,
+                    item=item_detail.item,
+                    return_quantity=return_qty,
+                    price_per_piece=item_detail.price_per_piece,
+                    subtotal=refund_amount,
+                    created_at=timezone.now()
+                )
+
+                # Update first_detail for header relation
+                if not first_detail:
+                    first_detail = item_detail
+
+                # Restock if return type is "return"
+                if return_type == 'return':
+                    stock_item = stock_items.objects.get(item=item_detail.item)
+                    stock_item.quantity += return_qty
+                    stock_item.save()
+
+                # Create inventory adjustment
+                inventory_adjustments.objects.create(
+                    item=item_detail.item,
+                    sales_order_return=return_header,
+                    adjustment_type=return_type,
+                    quantity=return_qty,
+                    adjustment_reason=return_reason,
+                    created_at=timezone.now(),
+                    adjusted_by=created_by_user
+                )
+
+            # Step 4: Update return header and customer bill
+            return_header.sales_order_detail = first_detail
+            return_header.total_refund_amount = total_refund
+            return_header.save()
+
+            if return_type == 'return':
+                customer = sales_order.customer
+                customer.total_bill = (customer.total_bill or Decimal('0')) - total_refund
+                customer.save()
+
+            messages.success(request, "Return processed successfully!")
+            return redirect('process_return')  
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+            context = {
+                'sales_orders': sales_orders.objects.all(),
+                'users': User.objects.all(),
+                'error': str(e),
+                'form_data': request.POST
+            }
+            return render(request, 'orders/process_return.html', context)
     
-# class ProcessReturnView(View):
-#     def post(self, request):
-#         data = request.POST
 
-#         try:
-#             return_details = request.POST.getlist('return_details')
-#             # If return_details is sent as JSON string (from frontend), parse it
-#             import json
-#             return_details = json.loads(return_details[0]) if return_details else []
-#         except Exception:
-#             return HttpResponseBadRequest("Invalid return_details format.")
+@transaction.atomic
+def purchase_order_return_view(request):
+    if request.method == 'POST':
+        try:
+            adjustment_ids = request.POST.get('adjustment_ids', '')
+            adjustment_ids = [int(i.strip()) for i in adjustment_ids.split(',') if i.strip().isdigit()]
+            created_by = request.user
 
-#         with transaction.atomic():
-#             try:
-#                 required_fields = ['sales_order_id', 'return_reason', 'return_type', 'created_by']
-#                 for field in required_fields:
-#                     if field not in data:
-#                         return HttpResponseBadRequest(f"Missing field: {field}")
+            valid_adjustments = inventory_adjustments.objects.filter(
+                id__in=adjustment_ids,
+                adjustment_type__in=['Unsold_items', 'Damage'],
+                is_processed=False
+            )
 
-#                 return_type = data['return_type']
-#                 if return_type not in ['return', 'damage', 'loss']:
-#                     return HttpResponseBadRequest("Invalid return_type.")
+            if valid_adjustments.count() != len(adjustment_ids):
+                invalid_ids = set(adjustment_ids) - set(valid_adjustments.values_list('id', flat=True))
+                messages.error(request, f"Invalid or already processed adjustments: {invalid_ids}")
+                return redirect('purchase_return')
 
-#                 try:
-#                     created_by = User.objects.get(id=data['created_by'])
-#                 except User.DoesNotExist:
-#                     return HttpResponseBadRequest("Invalid created_by user ID")
+            total_refund = Decimal('0')
+            return_items = []
+            vendor = None
 
-#                 try:
-#                     sales_order = sales_orders.objects.get(id=data['sales_order_id'])
-#                 except sales_orders.DoesNotExist:
-#                     return HttpResponseBadRequest("Sales Order not found")
+            for adj in valid_adjustments:
+                po_detail = purchase_order_detail.objects.filter(
+                    item=adj.item
+                ).order_by('-purchase_order__created_at').first()
 
-#                 sales_detail_id = return_details[0]['sales_order_detail_id']
-#                 try:
-#                     sales_detail = sales_order_detail.objects.get(id=sales_detail_id, sales_order=sales_order)
-#                 except sales_order_detail.DoesNotExist:
-#                     return HttpResponseBadRequest(f"Order detail {sales_detail_id} not found")
+                if not po_detail:
+                    messages.error(request, f"No purchase found for item ID: {adj.item.id}")
+                    return redirect('purchase_return')
 
-#                 return_header = sales_order_return.objects.create(
-#                     sales_order=sales_order,
-#                     customer=sales_order.customer,
-#                     total_refund_amount=0,
-#                     sales_order_detail=sales_detail,
-#                     return_type=return_type,
-#                     return_reason=data['return_reason'],
-#                     created_at=timezone.now(),
-#                     created_by=created_by
-#                 )
+                if not vendor:
+                    vendor = po_detail.purchase_order.vendor
+                elif vendor != po_detail.purchase_order.vendor:
+                    messages.error(request, "All items must belong to the same vendor.")
+                    return redirect('purchase_return')
 
-#                 total_refund = Decimal('0')
+                refund_amount = po_detail.price_per_piece * adj.quantity
+                total_refund += refund_amount
 
-#                 for detail in return_details:
-#                     try:
-#                         order_detail = sales_order_detail.objects.get(
-#                             id=detail['sales_order_detail_id'],
-#                             sales_order=sales_order
-#                         )
-#                     except sales_order_detail.DoesNotExist:
-#                         return HttpResponseBadRequest(f"Detail {detail['sales_order_detail_id']} not found")
+                return_items.append({
+                    'item': adj.item,
+                    'quantity': adj.quantity,
+                    'price': po_detail.price_per_piece,
+                    'refund': refund_amount,
+                    'purchase_order': po_detail.purchase_order,
+                    'adjustment': adj
+                })
 
-#                     if detail['return_quantity'] > order_detail.quantity:
-#                         return HttpResponseBadRequest(
-#                             f"Return quantity exceeds ordered quantity for item {order_detail.item.item_name}"
-#                         )
+            if not return_items:
+                messages.error(request, "No valid items found for processing.")
+                return redirect('purchase_return')
 
-#                     return_qty = Decimal(str(detail['return_quantity']))
-#                     price = Decimal(str(order_detail.price_per_piece))
-#                     refund_amount = price * return_qty
-#                     total_refund += refund_amount
+            return_header = purchase_order_return.objects.create(
+                purchase_orders=return_items[0]['purchase_order'],
+                vendor=vendor,
+                total_refund_amount=total_refund,
+                created_at=timezone.now(),
+                created_by=created_by
+            )
 
-#                     sales_order_return_detail.objects.create(
-#                         return_sale=return_header,
-#                         sales_order_detail=order_detail,
-#                         item=order_detail.item,
-#                         return_quantity=int(return_qty),
-#                         price_per_piece=price,
-#                         subtotal=refund_amount,
-#                         created_at=timezone.now()
-#                     )
+            for item in return_items:
+                purchase_order_return_detail.objects.create(
+                    return_purchase=return_header,
+                    purchase_order_detail=purchase_order_detail.objects.get(
+                        item=item['item'],
+                        purchase_order=item['purchase_order']
+                    ),
+                    return_quantity=item['quantity'],
+                    price_per_piece=item['price'],
+                    subtotal=item['refund'],
+                    created_at=timezone.now()
+                )
 
-#                     if return_type == 'return':
-#                         stock_item, _ = stock_items.objects.get_or_create(item=order_detail.item)
-#                         stock_item.quantity += int(return_qty)
-#                         stock_item.save()
+                item['adjustment'].is_processed = True
+                item['adjustment'].save()
 
-#                     inventory_adjustments.objects.create(
-#                         item=order_detail.item,
-#                         sales_order_return=return_header,
-#                         adjustment_type=return_type,
-#                         quantity=int(return_qty),
-#                         adjustment_reason=data['return_reason'],
-#                         created_at=timezone.now(),
-#                         adjusted_by=created_by
-#                     )
+            vendor.total_payables = (vendor.total_payables or Decimal('0')) - total_refund
+            vendor.save()
 
-#                 return_header.total_refund_amount = total_refund
-#                 return_header.save()
+            messages.success(request, f"Return processed successfully. Refund: {total_refund}, Vendor: {vendor.vendor_name}")
+            return redirect('purchase_return')
 
-#                 if return_type == 'return':
-#                     customer = sales_order.customer
-#                     customer.total_bill = (customer.total_bill or Decimal('0')) - total_refund
-#                     customer.save()
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+            return redirect('purchase_return')
 
-#                 return redirect('success_page') 
-#             except Exception as e:
-#                 return HttpResponseBadRequest(f"Return processing failed: {str(e)}")
+    return render(request, 'purchase_order_return/purchase_return.html')
 
-#     def get(self, request):
-#         return render(request, 'process_return.html')  
+
+@transaction.atomic
+def create_inventory_adjustment(request):
+    if request.method == 'POST':
+        try:
+            item_id = request.POST.get('item')
+            quantity = int(request.POST.get('quantity', 0))
+            adjustment_type = request.POST.get('adjustment_type')
+            reason = request.POST.get('adjustment_reason', '')
+            adjusted_by_id = request.POST.get('adjusted_by')
+
+            # Get related objects
+            item = items.objects.get(id=item_id)
+
+            if adjustment_type not in ['Damage', 'Unsold_items']:
+                messages.error(request, 'Only Damage or Unsold_items adjustments are allowed.')
+                return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
+
+            stock = stock_items.objects.get(item=item)
+            if stock.quantity < quantity:
+                messages.error(request, f'Only {stock.quantity} items in stock. Cannot adjust {quantity}.')
+                return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
+
+            # Create inventory adjustment
+            inventory_adjustments.objects.create(
+                item=item,
+                quantity=quantity,
+                adjustment_type=adjustment_type,
+                adjustment_reason=reason,
+                adjusted_by_id=adjusted_by_id,  
+                sales_order_return=None,
+                created_at=timezone.now(),
+                is_processed=False
+            )
+
+            # Update stock
+            stock.quantity -= quantity
+            stock.save()
+
+            check_safety_stock(item)
+
+            messages.success(request, f'{quantity} units of {item.item_name} removed from stock.')
+            return redirect('inventory_adjustments_list')  
+
+        except items.DoesNotExist:
+            messages.error(request, 'Invalid item selected.')
+        except stock_items.DoesNotExist:
+            messages.error(request, 'Stock entry for this item does not exist.')
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+
+    return render(request, 'inventory_adjustments/inventory_adjustments_list.html')

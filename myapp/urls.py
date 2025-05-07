@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 # from .views import (place_order,LoginView,DashboardView,categories_ViewSet,customers_ViewSet,discounts_ViewSet, inventory_adjustments_ViewSet, items_ViewSet,purchaseordersViewSet,purchase_receipts_ViewSet,sales_order_discounts_ViewSet,sales_orders_ViewSet,sales_order_tax_ViewSet,shipments_ViewSet,stock_items_ViewSet,stockmanagement_ViewSet,tax_configurations_ViewSet,AuthUser_ViewSet,vendors_ViewSet,warehouses_ViewSet,CustomTokenRefreshView,SalesReportView, PurchaseReportView,sales_order_detail_ViewSet,area_ViewSet,PlaceOrderViewSet,purchase_order_return_ViewSet,purchase_order_return_detail_ViewSet,sales_order_return_ViewSet,purchase_order_detail_ViewSet,notification_ViewSet)
-from .views import (place_order,DashboardView)
+from .views import (place_order, purchase_order_return_view, process_return)
 
 
 
@@ -40,7 +40,7 @@ urlpatterns = [
     # path('reports/sales/', SalesReportView.as_view(), name='sales_report'),
     # path('reports/purchases/', PurchaseReportView.as_view(), name='purchase_report'),
 
-    path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    # path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
 
     path('items/', views.ItemListView.as_view(), name='item_list'),
     path('items/create/', views.ItemCreateView.as_view(), name='item_create'),
@@ -63,7 +63,7 @@ urlpatterns = [
     path('discounts/<int:pk>/delete/', views.discountsDeleteView.as_view(), name='discounts_delete'),
     
     path('inventory_adjustments/', views.inventory_adjustmentsListView.as_view(), name='inventory_adjustments_list'),
-    path('inventory_adjustments/create/', views.inventory_adjustmentsCreateView.as_view(), name='inventory_adjustments_create'),
+    path('inventory_adjustments/create/', views.create_inventory_adjustment, name='inventory_adjustments_create'),
     path('inventory_adjustments/<int:pk>/update/', views.inventory_adjustmentsUpdateView.as_view(), name='inventory_adjustments_update'),
     path('inventory_adjustments/<int:pk>/delete/', views.inventory_adjustmentsDeleteView.as_view(), name='inventory_adjustments_delete'),
     
@@ -164,7 +164,9 @@ urlpatterns = [
             
     path('place_order/', place_order, name='place_order'),
     # path('order_success/', order_success, name='order_success'),
+    path('purchase_return/', purchase_order_return_view, name='purchase_return'),
 
     path('create_purchase_order/', views.PurchaseOrderView.as_view(), name='create_purchase_order'),
+    path('process_return/', process_return, name='process_return'),
     # path('sales-returns/', views.ProcessReturnView.as_view(), name='process_return'),
 ]

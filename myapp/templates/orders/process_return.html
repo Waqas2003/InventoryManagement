@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Process Return</h2>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
+<form method="POST">
+  {% csrf_token %}
+
+  <div>
+    <label for="sales_order_id">Select Sales Order:</label>
+    <select name="sales_order_id" required>
+      <option value="">-- Select Order --</option>
+      {% for order in sales_orders %}
+        <option value="{{ order.id }}" {% if form_data.sales_order_id == order.id|stringformat:"s" %}selected{% endif %}>
+          Order #{{ order.id }} - {{ order.customer.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label for="return_type">Return Type:</label>
+    <select name="return_type" required>
+      <option value="">-- Select Type --</option>
+      <option value="return">Return</option>
+      <option value="damage">Damage</option>
+      <option value="loss">Loss</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="return_reason">Reason:</label>
+    <textarea name="return_reason" rows="3" required>{{ form_data.return_reason }}</textarea>
+  </div>
+
+  <div>
+    <label for="created_by">Processed By:</label>
+    <select name="created_by" required>
+      <option value="">-- Select User --</option>
+      {% for user in users %}
+        <option value="{{ user.id }}" {% if form_data.created_by == user.id|stringformat:"s" %}selected{% endif %}>
+          {{ user.username }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <hr>
+
+  <h3>Return Items</h3>
+  {% comment %} <p>Note: This list should be dynamically loaded based on the selected Sales Order via JavaScript or backend filtering.</p> {% endcomment %}
+
+  <div id="return-items-container">
+    <div class="return-item">
+      <label>Sales Order Detail ID:</label>
+      <input type="text" name="sales_order_detail_id" required>
+
+      <label>Return Quantity:</label>
+      <input type="number" name="return_quantity" min="1" required>
+    </div>
+  </div>
+
+  <button type="button" onclick="addMore()">+ Add Another Item</button>
+
+  <hr>
+
+  <button type="submit">Submit Return</button>
+</form>
+
+<script>
+  function addMore() {
+    const container = document.getElementById('return-items-container');
+    const item = document.createElement('div');
+    item.className = 'return-item';
+    item.innerHTML = `
+      <label>Sales Order Detail ID:</label>
+      <input type="text" name="sales_order_detail_id" required>
+
+      <label>Return Quantity:</label>
+      <input type="number" name="return_quantity" min="1" required>
+    `;
+    container.appendChild(item);
+  }
+</script>
+
+<style>
+  form {
+    max-width: 600px;
+    margin: auto;
+    padding: 1em;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+  }
+
+  label {
+    font-weight: bold;
+    display: block;
+    margin-top: 10px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 0.4em;
+    margin-top: 5px;
+    box-sizing: border-box;
+  }
+
+  .return-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+
+  .alert {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  .alert-success {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .alert-error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+</style>
+{% endblock %}

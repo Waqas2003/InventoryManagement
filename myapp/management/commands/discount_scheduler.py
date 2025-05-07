@@ -17,7 +17,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(f"❌ Error: {str(e)}", style='ERROR')
         
-        schedule.every().day.at("01:55").do(update_discounts)
+        schedule.every().day.at("22:02").do(update_discounts)
         
         # # For testing, run every 60 seconds instead:
         # schedule.every(60).seconds.do(update_discounts)

@@ -68,13 +68,13 @@ class discounts(models.Model):
     created_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     
-    def save(self, *args, **kwargs):
-        today = timezone.now().date()
-        if self.valid_until < today:
-            self.is_active = False
-        else:
-            self.is_active = True  
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     today = timezone.now().date()
+    #     if self.valid_until < today:
+    #         self.is_active = False
+    #     else:
+    #         self.is_active = True  
+    #     super().save(*args, **kwargs)
     
     class Meta:
         

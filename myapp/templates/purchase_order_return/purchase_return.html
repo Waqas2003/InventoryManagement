@@ -1,0 +1,36 @@
+<!-- templates/purchase_return_form.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Return</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="card shadow-lg p-4">
+        <h2 class="mb-4 text-center text-primary">Purchase Return Form</h2>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" action="{% url 'purchase_return' %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="adjustment_ids" class="form-label">Adjustment IDs (comma-separated)</label>
+                <input type="text" class="form-control" name="adjustment_ids" id="adjustment_ids" required
+                       placeholder="e.g. 12, 13, 15">
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success">Submit Return</button>
+                <a href="/" class="btn btn-outline-secondary">Back to Home</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
