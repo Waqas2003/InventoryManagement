@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Sales Order Details{% endblock %}
+{% block content %}
+
+<h2>Order #{{ order.sales_order_number }} Details</h2>
+<p><strong>Customer:</strong> {{ order.customer }}</p>
+<p><strong>Status:</strong> {{ order.order_status }}</p>
+<p><strong>Net Total:</strong> {{ order.net_total }}</p>
+<p><strong>Date:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+
+<hr>
+
+<h4>Items</h4>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Discounted</th>
+            <th>Tax</th>
+            <th>Final Price</th>
+            <th>Sub Total</th>
+
+        </tr>
+    </thead>
+    <tbody>
+        {% for detail in details %}
+        <tr>
+            <td>{{ detail.item }}</td>
+            <td>{{ detail.quantity }}</td>
+            <td>{{ detail.price_per_piece }}</td>
+            <td>{{ detail.price_after_discount }}</td>
+            <td>{{ detail.tax_price }}</td>
+            <td>{{ detail.price_after_tax }}</td>
+            <td>{{ detail.sub_total }}</td>
+            
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">No items found in this order.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<div class="d-flex justify-content-end mt-3">
+    <table class="table table-borderless" style="max-width: 300px;">
+        <tr>
+            <th class="text-end">Net Total:</th>
+            <td class="text-end"><strong>{{ order.net_total }}</strong></td>
+        </tr>
+    </table>
+</div>
+
+
+
+{% endblock %}

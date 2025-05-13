@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Sales Report</h2>
+    
+    <!-- Report Type Selector -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                <div class="form-group mr-3">
+                    <label class="mr-2">Report Type:</label>
+                    <select name="report_type" class="form-control" onchange="this.form.submit()">
+                        <option value="daily" {% if report_type == 'daily' %}selected{% endif %}>Daily</option>
+                        <option value="monthly" {% if report_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                        <option value="yearly" {% if report_type == 'yearly' %}selected{% endif %}>Yearly</option>
+                    </select>
+                </div>
+                
+                {% if report_type == 'daily' %}
+                <div class="form-group">
+                    <label class="mr-2">Select Date:</label>
+                    <input type="date" name="custom_date" value="{{ custom_date|default:'' }}" class="form-control">
+                    <button type="submit" class="btn btn-primary ml-2">Filter</button>
+                </div>
+                {% elif report_type == 'monthly' %}
+                <div class="form-group">
+                    <label class="mr-2">Select Month:</label>
+                    <input type="month" name="custom_month" value="{{ custom_month|default:'' }}" class="form-control">
+                    <button type="submit" class="btn btn-primary ml-2">Filter</button>
+                </div>
+                {% elif report_type == 'yearly' %}
+                <div class="form-group">
+                    <label class="mr-2">Select Year:</label>
+                    <input type="number" name="custom_year" value="{{ custom_year|default:'' }}" min="2000" max="2100" class="form-control">
+                    <button type="submit" class="btn btn-primary ml-2">Filter</button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    
+    <!-- Report Summary -->
+    <div class="card">
+        <div class="card-header">
+            <h4>{{ period_label }} Sales Report</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Sales</h5>
+                            <p class="display-4">Rs: {{ total_sales|floatformat:2 }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Orders</h5>
+                            <p class="display-4">{{ total_orders }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Add this debug section temporarily at the bottom of your template -->
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            Detail Information
+        </div>
+        <div class="card-body">
+            <p><strong>Report Type:</strong> {{ report_type }}</p>
+            <p><strong>Period Label:</strong> {{ period_label }}</p>
+            {% comment %} <p><strong>Custom Month:</strong> {{ custom_month }}</p> {% endcomment %}
+            <p><strong>Total Sales:</strong> {{ total_sales }}</p>
+            <p><strong>Total Orders:</strong> {{ total_orders }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

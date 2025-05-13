@@ -1,6 +1,6 @@
-from rest_framework import viewsets,mixins
+from rest_framework import viewsets,mixins,status
 from .models import categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
-from .serializers import categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .serializers import CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -8,15 +8,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
-from .serializers import CustomTokenRefreshSerializer
 from django.db import models
-from rest_framework import status
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.timezone import now
+from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from asgiref.sync import async_to_sync
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from channels.layers import get_channel_layer
 from django.db.models import Sum, Count,F
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -24,7 +23,6 @@ from django.views import View
 import json
 from django.http import JsonResponse
 from decimal import Decimal
-from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -33,10 +31,8 @@ from django.shortcuts import render, redirect
 from django.db import transaction
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 import time
-
-
+from django.db.models.functions import TruncDay, TruncMonth, TruncYear
 
 # class purchaseordersViewSet(viewsets.ModelViewSet):
 #     queryset = purchase_orders.objects.all()
@@ -1195,15 +1191,19 @@ class sales_ordersCreateView(CreateView):
     
 class sales_ordersDeleteView(DeleteView):
     model = sales_orders
-    template_name = "sales_order/sales_orders_delete.html"
+    template_name = "sales_order/sales_order_delete.html"
     success_url = reverse_lazy('sales_orders_list')  
     
 class sales_ordersUpdateView(UpdateView):
     model = sales_orders
-    template_name = "sales_orders/sales_orders_form.html"
+    template_name = "sales_order/sales_orders_form.html"
     fields = '__all__'
     success_url = reverse_lazy('sales_orders_list')
-    
+
+def sales_order_detail_view(request, pk):
+    order = get_object_or_404(sales_orders, pk=pk)
+    details = sales_order_detail.objects.filter(sales_order=order)
+    return render(request, "sales_order_detail/sales_order_details.html", {'order': order, 'details': details})
     
 #Sales Order Return Crud Views   
 class sales_order_returnListView(ListView):
@@ -1514,7 +1514,7 @@ def place_order(request):
                 sales_order_number=f"SO{customer_id}{int(time.time())}", 
                 customer=customer,
                 area=area_obj,
-                order_status='Pending',
+                order_status='Delivered',
                 total_amount=0,  
                 discount=0,  
                 tax_amount=0,  
@@ -1647,33 +1647,143 @@ def check_safety_stock(item):
 
  
 #Dashboard View
+# class DashboardView(TemplateView):
+#     template_name = "dashboard.html"
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+
+#         # Total items
+#         context['total_items'] = items.objects.count()
+
+#         # Low stock items
+#         low_stock_items = items.objects.annotate(
+#             total_quantity=Sum('stock_items__quantity')
+#         ).filter(
+#             total_quantity__lte=F('safety_stock_level')
+#         )
+#         context['low_stock_count'] = low_stock_items.count()
+
+#         # Today's orders
+#         context['todays_orders'] = sales_orders.objects.filter(created_at__date=now().date()).count()
+
+#         # Notification count
+#         context['notification_count'] = notification.objects.count()
+
+#         # Recent alerts
+#         context['recent_alerts'] = notification.objects.order_by('-created_at')[:5]
+
+#         return context
+
+# from django.db.models import Sum, Count, F, Q
+from django.db.models import Sum, Count, F, Q, Case, When, IntegerField
+from django.utils import timezone
+from datetime import timedelta
+
 class DashboardView(TemplateView):
     template_name = "dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # Total items
+        
+        # Date ranges
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+        month_ago = today - timedelta(days=30)
+        
+        # Inventory Metrics
         context['total_items'] = items.objects.count()
-
-        # Low stock items
-        low_stock_items = items.objects.annotate(
-            total_quantity=Sum('stock_items__quantity')
-        ).filter(
-            total_quantity__lte=F('safety_stock_level')
-        )
+        context['out_of_stock'] = stock_items.objects.filter(quantity=0).count()
+        
+        # Low stock items (below safety level)
+        low_stock_items = stock_items.objects.filter(
+            quantity__lte=F('safety_stock_level')
+        ).select_related('item')
         context['low_stock_count'] = low_stock_items.count()
-
-        # Today's orders
-        context['todays_orders'] = sales_orders.objects.filter(created_at__date=now().date()).count()
-
-        # Notification count
-        context['notification_count'] = notification.objects.count()
-
-        # Recent alerts
-        context['recent_alerts'] = notification.objects.order_by('-created_at')[:5]
-
+        context['low_stock_list'] = low_stock_items[:5]  # Top 5 most critical
+        
+        # Sales Metrics
+        context['todays_orders'] = sales_orders.objects.filter(
+            created_at__date=today
+        ).count()
+        
+        context['weekly_sales'] = sales_orders.objects.filter(
+            created_at__date__gte=week_ago
+        ).aggregate(total=Sum('net_total'))['total'] or 0
+        
+        # Purchase Metrics
+        context['pending_orders'] = purchase_orders.objects.filter(
+            order_status='Pending'
+        ).count()
+        
+        # Financial Metrics
+        context['accounts_receivable'] = customers.objects.aggregate(
+            total=Sum('total_bill')
+        )['total'] or 0
+        
+        context['accounts_payable'] = vendors.objects.aggregate(
+            total=Sum('total_payables')
+        )['total'] or 0
+        
+        # Recent Activity
+        context['recent_orders'] = sales_orders.objects.select_related(
+            'customer'
+        ).order_by('-created_at')[:5]
+        
+        context['recent_purchases'] = purchase_orders.objects.select_related(
+            'vendor'
+        ).order_by('-created_at')[:3]
+        
+        # Notification system
+        context['notification_count'] = notification.objects.filter(
+            is_read=False
+        ).count()
+        
+        context['recent_alerts'] = notification.objects.filter(
+            is_read=False
+        ).order_by('-created_at')[:5]
+        
+        # Performance charts data
+        context['sales_chart_data'] = self.get_sales_chart_data()
+        context['inventory_chart_data'] = self.get_inventory_chart_data()
+        
         return context
+    
+    def get_sales_chart_data(self):
+        """Generate data for sales performance chart"""
+        date = timezone.now().date() - timedelta(days=30)
+        sales_data = sales_orders.objects.filter(
+            created_at__date__gte=date
+        ).extra({
+            'day': "date(created_at)"
+        }).values('day').annotate(
+            total=Sum('net_total')
+        ).order_by('day')
+        
+        return {
+            'labels': [item['day'].strftime('%b %d') for item in sales_data],
+            'data': [float(item['total'] or 0) for item in sales_data]
+        }
+    
+    def get_inventory_chart_data(self):
+        """Generate data for inventory status chart"""
+        categories = items.objects.values(
+            'category__category_name'
+        ).annotate(
+            count=Count('id'),
+            low_stock=Sum(Case(
+                When(stock_items__quantity__lte=F('stock_items__safety_stock_level'), then=1),
+                default=0,
+                output_field=IntegerField()
+            ))
+        )
+        
+        return {
+            'labels': [item['category__category_name'] or 'Uncategorized' for item in categories],
+            'total': [item['count'] for item in categories],
+            'low_stock': [item['low_stock'] for item in categories]
+        }
+
 
 
 class PurchaseOrderView(View):
@@ -2085,3 +2195,218 @@ def create_inventory_adjustment(request):
             messages.error(request, f'Error: {str(e)}')
 
     return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
+
+
+# def sales_summary_view(request):
+#     daily_sales = sales_orders.objects.filter(order_status='delivered') \
+#         .annotate(day=TruncDay('created_at')) \
+#         .values('day') \
+#         .annotate(total_sales=Sum('net_total')) \
+#         .order_by('-day')
+
+#     monthly_sales = sales_orders.objects.filter(order_status='delivered') \
+#         .annotate(month=TruncMonth('created_at')) \
+#         .values('month') \
+#         .annotate(total_sales=Sum('net_total')) \
+#         .order_by('-month')
+
+#     yearly_sales = sales_orders.objects.filter(order_status='delivered') \
+#         .annotate(year=TruncYear('created_at')) \
+#         .values('year') \
+#         .annotate(total_sales=Sum('net_total')) \
+#         .order_by('-year')
+
+#     context = {
+#         'daily_sales': daily_sales,
+#         'monthly_sales': monthly_sales,
+#         'yearly_sales': yearly_sales,
+#     }
+#     return render(request, 'sales/sales_summary.html', context)
+
+
+# def daily_sales_summary(request):
+#     daily_sales = (
+#         sales_orders.objects
+#         .filter(created_at__isnull=False)
+#         .annotate(day=TruncDay('created_at'))
+#         .values('day')
+#         .annotate(total_sales=Sum('net_total'))
+#         .order_by('-day')
+#     )
+#     return render(request, 'sales_summary/daily_sales.html', {'sales': daily_sales})
+
+# def monthly_sales_summary(request):
+#     monthly_sales = (
+#         sales_orders.objects
+#         .filter(created_at__isnull=False)
+#         .annotate(month=TruncMonth('created_at'))
+#         .values('month')
+#         .annotate(total_sales=Sum('net_total'))
+#         .order_by('-month')
+#     )
+#     return render(request, 'sales_summary/monthly_sales.html', {'sales': monthly_sales})
+
+# def yearly_sales_summary(request):
+#     yearly_sales = (
+#         sales_orders.objects
+#         .filter(created_at__isnull=False)
+#         .annotate(year=TruncYear('created_at'))
+#         .values('year')
+#         .annotate(total_sales=Sum('net_total'))
+#         .order_by('-year')
+#     )
+#     return render(request, 'sales_summary/yearly_sales.html', {'sales': yearly_sales})
+ 
+
+# Helper functions for sales calculations
+def get_daily_sales(date=None):
+    """Calculate daily sales for a specific date (defaults to today)"""
+    if date is None:
+        date = timezone.now().date()
+    
+    start_date = timezone.make_aware(datetime.combine(date, datetime.min.time()))
+    end_date = timezone.make_aware(datetime.combine(date, datetime.max.time()))
+    
+    return sales_orders.objects.filter(
+        created_at__range=(start_date, end_date)
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+
+# def get_monthly_sales(year=None, month=None):
+#     """Calculate monthly sales for a specific year/month (defaults to current)"""
+#     if year is None:
+#         year = timezone.now().year
+#     if month is None:
+#         month = timezone.now().month
+    
+#     return sales_orders.objects.filter(
+#         created_at__year=year,
+#         created_at__month=month
+#     ).aggregate(
+#         total_sales=Sum('net_total'),
+#         total_orders=Count('id')
+#     )
+
+def get_monthly_sales(year=None, month=None):
+    """Calculate monthly sales for a specific year/month (defaults to current)"""
+    if year is None:
+        year = timezone.now().year
+    if month is None:
+        month = timezone.now().month
+    
+    # Debug print to check values
+    print(f"Fetching monthly sales for {year}-{month}")
+    
+    # Get first and last day of month for precise filtering
+    first_day = timezone.make_aware(datetime(year, month, 1))
+    if month == 12:
+        last_day = timezone.make_aware(datetime(year+1, 1, 1) - timedelta(days=1))
+    else:
+        last_day = timezone.make_aware(datetime(year, month+1, 1) - timedelta(days=1))
+    
+    result = sales_orders.objects.filter(
+        created_at__range=(first_day, last_day)
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+    
+    # Debug print to check results
+    print(f"Monthly sales result: {result}")
+    
+    return result
+
+def get_yearly_sales(year=None):
+    """Calculate yearly sales for a specific year (defaults to current)"""
+    if year is None:
+        year = timezone.now().year
+    
+    return sales_orders.objects.filter(
+        created_at__year=year
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+
+# Sales Report Views
+class SalesReportView(TemplateView):
+    """Comprehensive sales report view with date filtering"""
+    template_name = 'sales/sales_report.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get filter parameters from request
+        report_type = self.request.GET.get('report_type', 'daily')
+        custom_date = self.request.GET.get('custom_date')
+        custom_month = self.request.GET.get('custom_month')
+        custom_year = self.request.GET.get('custom_year')
+        
+        # Initialize variables
+        sales_data = {}
+        period_label = ""
+        
+        # Daily Report
+        if report_type == 'daily':
+            if custom_date:
+                try:
+                    date = datetime.strptime(custom_date, '%Y-%m-%d').date()
+                    sales_data = get_daily_sales(date)
+                    period_label = date.strftime("%d %b %Y")
+                except ValueError:
+                    messages.error(self.request, "Invalid date format. Using today's data.")
+                    sales_data = get_daily_sales()
+                    period_label = "Today"
+            else:
+                sales_data = get_daily_sales()
+                period_label = "Today"
+        
+        # Monthly Report
+        elif report_type == 'monthly':
+            if custom_month:
+                try:
+                    year, month = map(int, custom_month.split('-'))
+                    sales_data = get_monthly_sales(year, month)
+                    period_label = datetime(year=year, month=month, day=1).strftime("%B %Y")
+                except (ValueError, IndexError):
+                    messages.error(self.request, "Invalid month format. Using current month data.")
+                    sales_data = get_monthly_sales()
+                    period_label = "This Month"
+            else:
+                sales_data = get_monthly_sales()
+                period_label = "This Month"
+        
+        # Yearly Report
+        elif report_type == 'yearly':
+            if custom_year:
+                try:
+                    year = int(custom_year)
+                    sales_data = get_yearly_sales(year)
+                    period_label = str(year)
+                except ValueError:
+                    messages.error(self.request, "Invalid year format. Using current year data.")
+                    sales_data = get_yearly_sales()
+                    period_label = "This Year"
+            else:
+                sales_data = get_yearly_sales()
+                period_label = "This Year"
+        
+        # Prepare context data
+        context.update({
+            'report_type': report_type,
+            'period_label': period_label,
+            'total_sales': sales_data.get('total_sales', 0) or 0,
+            'total_orders': sales_data.get('total_orders', 0) or 0,
+            'custom_date': custom_date,
+            'custom_month': custom_month,
+            'custom_year': custom_year,
+        })
+        
+        return context
+    
+    
+# from django.utils import timezone
+# print("current time is",timezone.now())
+    

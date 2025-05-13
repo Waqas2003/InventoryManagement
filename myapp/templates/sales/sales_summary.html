@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Sales Summary{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">📊 Sales Summary</h2>
+
+<!-- Bootstrap Tabs -->
+<ul class="nav nav-tabs" id="salesTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab">Daily</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly" type="button" role="tab">Monthly</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="yearly-tab" data-bs-toggle="tab" data-bs-target="#yearly" type="button" role="tab">Yearly</button>
+    </li>
+</ul>
+
+<div class="tab-content mt-4" id="salesTabsContent">
+    <!-- Daily Sales -->
+    <div class="tab-pane fade show active" id="daily" role="tabpanel">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>📅 Daily Sales</h5>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Date</th><th>Total Sales (PKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for record in daily_sales %}
+                            <tr>
+                                <td>{{ record.day|date:"Y-m-d" }}</td>
+                                <td>{{ record.total_sales|floatformat:2 }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="2" class="text-center">No daily data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Sales -->
+    <div class="tab-pane fade" id="monthly" role="tabpanel">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>📆 Monthly Sales</h5>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Month</th><th>Total Sales (PKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for record in monthly_sales %}
+                            <tr>
+                                <td>{{ record.month|date:"Y-m" }}</td>
+                                <td>{{ record.total_sales|floatformat:2 }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="2" class="text-center">No monthly data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Yearly Sales -->
+    <div class="tab-pane fade" id="yearly" role="tabpanel">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5>📈 Yearly Sales</h5>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr><th>Year</th><th>Total Sales (PKR)</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for record in yearly_sales %}
+                            <tr>
+                                <td>{{ record.year|date:"Y" }}</td>
+                                <td>{{ record.total_sales|floatformat:2 }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="2" class="text-center">No yearly data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

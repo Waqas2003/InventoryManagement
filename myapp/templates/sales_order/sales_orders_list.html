@@ -25,10 +25,11 @@
             <td>{{ order.total_amount }}</td>
             <td>{{ order.net_total }}</td>
             <td>{{ order.created_at|date:"Y-m-d" }}</td>
-            <td>
+           <td>
+               <a href="{% url 'sales_order_details' order.pk %}" class="btn btn-sm btn-info">View</a>
                 <a href="{% url 'sales_orders_update' order.pk %}" class="btn btn-sm btn-warning">Edit</a>
                 <a href="{% url 'sales_orders_delete' order.pk %}" class="btn btn-sm btn-danger">Delete</a>
-            </td>
+          </td>
         </tr>
         {% empty %}
         <tr>

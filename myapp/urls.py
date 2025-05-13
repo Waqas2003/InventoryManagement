@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 # from .views import (place_order,LoginView,DashboardView,categories_ViewSet,customers_ViewSet,discounts_ViewSet, inventory_adjustments_ViewSet, items_ViewSet,purchaseordersViewSet,purchase_receipts_ViewSet,sales_order_discounts_ViewSet,sales_orders_ViewSet,sales_order_tax_ViewSet,shipments_ViewSet,stock_items_ViewSet,stockmanagement_ViewSet,tax_configurations_ViewSet,AuthUser_ViewSet,vendors_ViewSet,warehouses_ViewSet,CustomTokenRefreshView,SalesReportView, PurchaseReportView,sales_order_detail_ViewSet,area_ViewSet,PlaceOrderViewSet,purchase_order_return_ViewSet,purchase_order_return_detail_ViewSet,sales_order_return_ViewSet,purchase_order_detail_ViewSet,notification_ViewSet)
-from .views import (place_order, purchase_order_return_view, process_return)
+from .views import (place_order, purchase_order_return_view, process_return, SalesReportView)
 
 
 
@@ -169,4 +169,15 @@ urlpatterns = [
     path('create_purchase_order/', views.PurchaseOrderView.as_view(), name='create_purchase_order'),
     path('process_return/', process_return, name='process_return'),
     # path('sales-returns/', views.ProcessReturnView.as_view(), name='process_return'),
+
+    # path('sales-summary/daily/', views.daily_sales_summary, name='daily_sales_summary'),
+    # path('sales-summary/monthly/', views.monthly_sales_summary, name='monthly_sales_summary'),
+    # path('sales-summary/yearly/', views.yearly_sales_summary, name='yearly_sales_summary'),
+    
+    # path('sales_summary/', views.sales_summary_view, name='sales_summary')
+    path('sales_report/', SalesReportView.as_view(), name='sales_report'),
+     path('sales_orders/<int:pk>/details/', views.sales_order_detail_view, name='sales_order_details'),
+
+
+
 ]

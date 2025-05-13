@@ -265,9 +265,8 @@ class area(models.Model):
 class sales_orders(models.Model):
     sales_order_status_choices = [
         ('Pending', 'pending'),
-        ('Processed', 'processed'),
         ('Shipped', 'shipped'),
-        ('Completed', 'completed'),
+        ('Delivered', 'delivered'),
         ('Canceled', 'canceled'),
     ]
 
@@ -275,7 +274,7 @@ class sales_orders(models.Model):
     area = models.ForeignKey(area, on_delete=models.CASCADE, blank=True, null=True)
     sales_order_number = models.CharField(unique=True, max_length=100)
     customer = models.ForeignKey('customers', models.DO_NOTHING, blank=True, null=True)
-    order_status = models.CharField(max_length=9, choices=sales_order_status_choices, default='pending')
+    order_status = models.CharField(max_length=9, choices=sales_order_status_choices, default='delivered')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
