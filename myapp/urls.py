@@ -162,21 +162,15 @@ urlpatterns = [
     path('notification/<int:pk>/update/', views.notificationUpdateView.as_view(), name='notification_update'),
     path('notification/<int:pk>/delete/', views.notificationDeleteView.as_view(), name='notification_delete'),
             
+    
     path('place_order/', place_order, name='place_order'),
-    # path('order_success/', order_success, name='order_success'),
-    path('purchase_return/', purchase_order_return_view, name='purchase_return'),
+    path('process_return/', process_return, name='process_return'),
 
     path('create_purchase_order/', views.PurchaseOrderView.as_view(), name='create_purchase_order'),
-    path('process_return/', process_return, name='process_return'),
-    # path('sales-returns/', views.ProcessReturnView.as_view(), name='process_return'),
-
-    # path('sales-summary/daily/', views.daily_sales_summary, name='daily_sales_summary'),
-    # path('sales-summary/monthly/', views.monthly_sales_summary, name='monthly_sales_summary'),
-    # path('sales-summary/yearly/', views.yearly_sales_summary, name='yearly_sales_summary'),
+    path('purchase_return/', purchase_order_return_view, name='purchase_return'),
     
-    # path('sales_summary/', views.sales_summary_view, name='sales_summary')
     path('sales_report/', SalesReportView.as_view(), name='sales_report'),
-     path('sales_orders/<int:pk>/details/', views.sales_order_detail_view, name='sales_order_details'),
+    path('sales_orders/<int:pk>/details/', views.sales_order_detail_view, name='sales_order_details'), # individual order details
 
 
 

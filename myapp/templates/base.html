@@ -100,6 +100,7 @@
         <h4>Bidecon</h4>
         <a href="{% url 'dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a>
         <a href="{% url 'item_list' %}"><i class="fas fa-boxes me-2"></i> Items</a>
+        <a href="{% url 'customers_list' %}"><i class="fas fa-person me-2"></i> Customer</a>
         <a href="{% url 'sales_orders_list' %}"><i class="fas fa-shopping-cart me-2"></i> Orders</a>
         <a href="{% url 'inventory_adjustments_list' %}"><i class="fas fa-sliders-h me-2"></i> Inventory</a>
         <a href="{% url 'notification_list' %}"><i class="fas fa-bell me-2"></i> Alerts</a>
@@ -113,15 +114,22 @@
             <div class="container-fluid d-flex justify-content-between align-items-center">
                 <span class="navbar-brand">Welcome, {{ request.user.username|default:'Admin' }}</span>
                 <div>
-                    <a href="{% url 'place_order' %}" class="btn btn-warning btn-sm me-2 btn-custom">
+                    <a href="{% url 'place_order' %}" class="btn btn-success btn-sm me-2 btn-custom">
                         <i class="fas fa-plus-circle me-1"></i> Place Order
                     </a>
-                    <a href="{% url 'purchase_orders_create' %}" class="btn btn-success btn-sm me-2 btn-custom">
+                    <a href="{% url 'process_return' %}" class="btn btn-danger btn-sm btn-custom">
+                        <i class="fas fa-undo me-1"></i> Return Order
+                    </a>
+                    <a href="{% url 'purchase_orders_create' %}" class="btn btn-primary btn-sm me-2 btn-custom">
                         <i class="fas fa-file-invoice-dollar me-1"></i> Purchase Order
+                    </a>
+                    <a href="{% url 'purchase_return' %}" class="btn btn-warning btn-sm btn-custom">
+                        <i class="fas fa-undo me-1"></i> Purchase Return
                     </a>
                     <a href="{% url 'sales_report' %}" class="btn btn-info btn-sm btn-custom">
                         <i class="fas fa-chart-line me-1"></i> Sales Report
                     </a>
+                     
                 </div>
             </div>
         </nav>

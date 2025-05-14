@@ -1680,6 +1680,76 @@ from django.db.models import Sum, Count, F, Q, Case, When, IntegerField
 from django.utils import timezone
 from datetime import timedelta
 
+# class DashboardView(TemplateView):
+#     template_name = "dashboard.html"
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+        
+#         # Date ranges
+#         today = timezone.now().date()
+#         week_ago = today - timedelta(days=7)
+#         month_ago = today - timedelta(days=30)
+        
+#         # Inventory Metrics
+#         context['total_items'] = items.objects.count()
+#         context['out_of_stock'] = stock_items.objects.filter(quantity=0).count()
+        
+#         # Low stock items (below safety level)
+#         low_stock_items = stock_items.objects.filter(
+#             quantity__lte=F('safety_stock_level')
+#         ).select_related('item')
+#         context['low_stock_count'] = low_stock_items.count()
+#         context['low_stock_list'] = low_stock_items[:5]  
+        
+#         # Sales Metrics
+#         context['todays_orders'] = sales_orders.objects.filter(
+#             created_at__date=today
+#         ).count()
+#         # context['todays_orders'] = sales_orders.objects.count()
+        
+#         context['weekly_sales'] = sales_orders.objects.filter(
+#             created_at__date__gte=week_ago
+#         ).aggregate(total=Sum('net_total'))['total'] or 0
+        
+#         # Purchase Metrics
+#         context['pending_orders'] = purchase_orders.objects.filter(
+#             order_status='Pending'
+#         ).count()
+        
+#         # Financial Metrics
+#         context['accounts_receivable'] = customers.objects.aggregate(
+#             total=Sum('total_bill')
+#         )['total'] or 0
+        
+#         context['accounts_payable'] = vendors.objects.aggregate(
+#             total=Sum('total_payables')
+#         )['total'] or 0
+        
+#         # Recent Activity
+#         context['recent_orders'] = sales_orders.objects.select_related(
+#             'customer'
+#         ).order_by('-created_at')[:5]
+        
+#         context['recent_purchases'] = purchase_orders.objects.select_related(
+#             'vendor'
+#         ).order_by('-created_at')[:3]
+        
+#         # Notification system
+#         context['notification_count'] = notification.objects.filter(
+#             is_read=False
+#         ).count()
+        
+#         context['recent_alerts'] = notification.objects.filter(
+#             is_read=False
+#         ).order_by('-created_at')[:5]
+        
+#         # Performance charts data
+#         context['sales_chart_data'] = self.get_sales_chart_data()
+#         context['inventory_chart_data'] = self.get_inventory_chart_data()
+        
+#         return context
+
 class DashboardView(TemplateView):
     template_name = "dashboard.html"
 
@@ -1695,21 +1765,29 @@ class DashboardView(TemplateView):
         context['total_items'] = items.objects.count()
         context['out_of_stock'] = stock_items.objects.filter(quantity=0).count()
         
-        # Low stock items (below safety level)
+        # Low stock items
         low_stock_items = stock_items.objects.filter(
             quantity__lte=F('safety_stock_level')
         ).select_related('item')
         context['low_stock_count'] = low_stock_items.count()
-        context['low_stock_list'] = low_stock_items[:5]  # Top 5 most critical
+        context['low_stock_list'] = low_stock_items[:5]  
         
         # Sales Metrics
-        context['todays_orders'] = sales_orders.objects.filter(
-            created_at__date=today
-        ).count()
+        today_sales_data = get_daily_sales(today)
+        context['todays_orders'] = today_sales_data['total_orders'] or 0
+        context['todays_sales'] = today_sales_data['total_sales'] or 0
+        
+        # Total Sales (all time)
+        context['total_sales'] = sales_orders.objects.aggregate(
+            total=Sum('net_total')
+        )['total'] or 0
         
         context['weekly_sales'] = sales_orders.objects.filter(
             created_at__date__gte=week_ago
         ).aggregate(total=Sum('net_total'))['total'] or 0
+        
+        # Total orders (all time)
+        context['total_orders'] = sales_orders.objects.count()
         
         # Purchase Metrics
         context['pending_orders'] = purchase_orders.objects.filter(
@@ -1730,25 +1808,20 @@ class DashboardView(TemplateView):
             'customer'
         ).order_by('-created_at')[:5]
         
-        context['recent_purchases'] = purchase_orders.objects.select_related(
-            'vendor'
-        ).order_by('-created_at')[:3]
+        # Daily sales data for the week (today first)
+        daily_sales = []
+        for i in range(7):
+            date = today - timedelta(days=i)
+            sales_data = get_daily_sales(date)
+            daily_sales.append({
+                'date': date,
+                'orders': sales_data['total_orders'] or 0,
+                'sales': sales_data['total_sales'] or 0
+            })
         
-        # Notification system
-        context['notification_count'] = notification.objects.filter(
-            is_read=False
-        ).count()
+        context['daily_sales'] = daily_sales  # Today is first in list
         
-        context['recent_alerts'] = notification.objects.filter(
-            is_read=False
-        ).order_by('-created_at')[:5]
-        
-        # Performance charts data
-        context['sales_chart_data'] = self.get_sales_chart_data()
-        context['inventory_chart_data'] = self.get_inventory_chart_data()
-        
-        return context
-    
+        return context    
     def get_sales_chart_data(self):
         """Generate data for sales performance chart"""
         date = timezone.now().date() - timedelta(days=30)
@@ -2195,67 +2268,6 @@ def create_inventory_adjustment(request):
             messages.error(request, f'Error: {str(e)}')
 
     return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
-
-
-# def sales_summary_view(request):
-#     daily_sales = sales_orders.objects.filter(order_status='delivered') \
-#         .annotate(day=TruncDay('created_at')) \
-#         .values('day') \
-#         .annotate(total_sales=Sum('net_total')) \
-#         .order_by('-day')
-
-#     monthly_sales = sales_orders.objects.filter(order_status='delivered') \
-#         .annotate(month=TruncMonth('created_at')) \
-#         .values('month') \
-#         .annotate(total_sales=Sum('net_total')) \
-#         .order_by('-month')
-
-#     yearly_sales = sales_orders.objects.filter(order_status='delivered') \
-#         .annotate(year=TruncYear('created_at')) \
-#         .values('year') \
-#         .annotate(total_sales=Sum('net_total')) \
-#         .order_by('-year')
-
-#     context = {
-#         'daily_sales': daily_sales,
-#         'monthly_sales': monthly_sales,
-#         'yearly_sales': yearly_sales,
-#     }
-#     return render(request, 'sales/sales_summary.html', context)
-
-
-# def daily_sales_summary(request):
-#     daily_sales = (
-#         sales_orders.objects
-#         .filter(created_at__isnull=False)
-#         .annotate(day=TruncDay('created_at'))
-#         .values('day')
-#         .annotate(total_sales=Sum('net_total'))
-#         .order_by('-day')
-#     )
-#     return render(request, 'sales_summary/daily_sales.html', {'sales': daily_sales})
-
-# def monthly_sales_summary(request):
-#     monthly_sales = (
-#         sales_orders.objects
-#         .filter(created_at__isnull=False)
-#         .annotate(month=TruncMonth('created_at'))
-#         .values('month')
-#         .annotate(total_sales=Sum('net_total'))
-#         .order_by('-month')
-#     )
-#     return render(request, 'sales_summary/monthly_sales.html', {'sales': monthly_sales})
-
-# def yearly_sales_summary(request):
-#     yearly_sales = (
-#         sales_orders.objects
-#         .filter(created_at__isnull=False)
-#         .annotate(year=TruncYear('created_at'))
-#         .values('year')
-#         .annotate(total_sales=Sum('net_total'))
-#         .order_by('-year')
-#     )
-#     return render(request, 'sales_summary/yearly_sales.html', {'sales': yearly_sales})
  
 
 # Helper functions for sales calculations
@@ -2274,20 +2286,6 @@ def get_daily_sales(date=None):
         total_orders=Count('id')
     )
 
-# def get_monthly_sales(year=None, month=None):
-#     """Calculate monthly sales for a specific year/month (defaults to current)"""
-#     if year is None:
-#         year = timezone.now().year
-#     if month is None:
-#         month = timezone.now().month
-    
-#     return sales_orders.objects.filter(
-#         created_at__year=year,
-#         created_at__month=month
-#     ).aggregate(
-#         total_sales=Sum('net_total'),
-#         total_orders=Count('id')
-#     )
 
 def get_monthly_sales(year=None, month=None):
     """Calculate monthly sales for a specific year/month (defaults to current)"""
