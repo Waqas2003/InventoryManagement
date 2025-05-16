@@ -38,7 +38,7 @@ class customers(models.Model):
     shipping_address = models.TextField(blank=True, null=True)
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     total_bill = models.DecimalField(max_digits=10, decimal_places=2, blank=True, default=0)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     customer_type = models.CharField(max_length=7, choices=customer_types, default='regular')
     
     class Meta:
@@ -65,7 +65,7 @@ class discounts(models.Model):
     valid_from = models.DateField()
     valid_until = models.DateField()
     applies_to = models.CharField(max_length=8, choices=applies_to_choices, default='all')
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     is_active = models.BooleanField(default=True)
     
     # def save(self, *args, **kwargs):
@@ -100,7 +100,7 @@ class inventory_adjustments(models.Model):
     quantity = models.IntegerField()
     adjusted_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
     adjustment_reason = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     is_processed = models.BooleanField(default=False)
 
     class Meta:        
@@ -161,7 +161,7 @@ class purchase_orders(models.Model):
     discount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     net_total = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
     class Meta:        
         db_table = 'purchase_orders'
@@ -197,7 +197,7 @@ class purchase_order_return(models.Model):
     purchase_orders = models.ForeignKey('purchase_orders',on_delete=models.CASCADE, null=True, blank=True,db_column="sales_order_id")
     vendor = models.ForeignKey('vendors',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
     class Meta:        
@@ -212,7 +212,7 @@ class purchase_order_return_detail(models.Model):
     return_quantity = models.IntegerField()
     price_per_piece = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(null=True,blank=True)
+    created_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
     
     class Meta:
         db_table = 'purchase_order_return_detail'
@@ -232,7 +232,7 @@ class purchase_receipts(models.Model):
     received_quantity = models.IntegerField()
     purchase_receipt_status = models.CharField(max_length=8, choices=receipt_status_choices, default='pending')
     received_date = models.DateField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     
     class Meta:        
         db_table = 'purchase_receipts'
@@ -271,7 +271,7 @@ class sales_orders(models.Model):
     ]
 
     id = models.AutoField(primary_key=True)
-    area = models.ForeignKey(area, on_delete=models.CASCADE, blank=True, null=True)
+    area = models.ForeignKey(area, on_delete=models.SET_NULL, blank=True, null=True)
     sales_order_number = models.CharField(unique=True, max_length=100)
     customer = models.ForeignKey('customers', models.DO_NOTHING, blank=True, null=True)
     order_status = models.CharField(max_length=9, choices=sales_order_status_choices, default='delivered')
@@ -279,7 +279,7 @@ class sales_orders(models.Model):
     discount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     net_total = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
     class Meta:        
         db_table = 'sales_orders'
@@ -301,7 +301,7 @@ class sales_order_return(models.Model):
     return_reason = models.TextField(blank=True, null=True)
     customer = models.ForeignKey('customers',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
 
@@ -317,7 +317,7 @@ class sales_order_return_detail(models.Model):
     return_quantity = models.IntegerField()
     price_per_piece = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(null=True,blank=True)
+    created_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
     
     class Meta:
         db_table = 'sales_order_return_detail'
@@ -346,10 +346,10 @@ class shipments(models.Model):
     id = models.AutoField(primary_key=True)
     shipment_number = models.CharField(unique=True, max_length=100)
     sales_order = models.ForeignKey(sales_orders, models.DO_NOTHING, blank=True, null=True)
-    shipments_status  = models.CharField(max_length=9, choices=shipments_status_choices, default='Intarnsit')
+    shipments_status  = models.CharField(max_length=9, choices=shipments_status_choices, default='Delivered')
     shipping_date  = models.DateField(blank=True, null=True)
     expected_delivery_date = models.DateField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     
     class Meta:
         
@@ -362,12 +362,12 @@ class shipments(models.Model):
 
 class stock_items(models.Model):
     id = models.AutoField(primary_key=True)
-    stock = models.ForeignKey('stockmanagement', models.DO_NOTHING, blank=True, null=True)
+    stock = models.ForeignKey('stockmanagement', models.DO_NOTHING, blank=True, null=True )
     item = models.ForeignKey(items, models.DO_NOTHING, blank=True, null=True, related_name='stock_items')
     quantity = models.IntegerField()
     safety_stock_level = models.IntegerField()
-    last_restocked_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    last_restocked_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
     class Meta:        
         db_table = 'stock_items'
@@ -378,7 +378,7 @@ class stockmanagement(models.Model):
     id = models.AutoField(primary_key=True)
     stock_code = models.CharField(max_length=255)
     warehouse = models.ForeignKey('warehouses', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
     class Meta:
         
@@ -398,7 +398,7 @@ class tax_configurations(models.Model):
     tax_name = models.CharField(max_length=255)
     rate_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     applies_to = models.CharField(max_length=9, choices=tax_applies_to_choices, default='all')
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     
     class Meta:
         
@@ -418,10 +418,9 @@ class vendors(models.Model):
     address = models.TextField(blank=True, null=True)
     total_payables = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
-    class Meta:
-        
+    class Meta:        
         db_table = 'vendors'
         verbose_name_plural = "vendors"        
 
@@ -434,7 +433,7 @@ class warehouses(models.Model):
     warehouse_name = models.CharField(max_length=255)
     warehouse_location = models.CharField(max_length=255)
     capacity = models.IntegerField()
-    created_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
