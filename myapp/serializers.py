@@ -202,28 +202,17 @@ class sale_orders_Serializer(serializers.ModelSerializer):
         return sales_order
 
 class place_order_Serializer(serializers.Serializer):
-    customer_id = serializers.IntegerField()
-    area_id = serializers.IntegerField()
+    customer_id = serializers.IntegerField(required=True)
+    area_id = serializers.IntegerField(required=False, allow_null=True)  # Make this optional
     order_details = serializers.ListField(
         child=serializers.DictField(
             child=serializers.CharField(),
             allow_empty=False
-        )
-    )
-
-    def validate_customer_id(self, value):
-        if not customers.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Customer does not exist.")
-        return value
-
-    def validate_area_id(self, value):
-        if not area.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Area does not exist.")
-        return value
-
-    def validate_order_details(self, value):
-        for item_detail in value:
-            if not items.objects.filter(id=item_detail.get('item_id')).exists():
-                raise serializers.ValidationError(f"Item with ID {item_detail.get('item_id')} does not exist.")
-        return value    
-    
+        ),
+        required=True
+    )    
+class SalesReportSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    total_sales = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_orders = serializers.IntegerField()
+    total_items_sold = serializers.IntegerField()

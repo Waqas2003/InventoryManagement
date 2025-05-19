@@ -447,7 +447,7 @@ class warehouses(models.Model):
 class sales_order_detail(models.Model):
     id = models.AutoField(primary_key=True)
     item = models.ForeignKey(items, on_delete=models.CASCADE)
-    sales_order = models.ForeignKey(sales_orders, on_delete=models.CASCADE)
+    sales_order = models.ForeignKey(sales_orders, on_delete=models.CASCADE )
     price_per_piece = models.IntegerField()
     quantity = models.IntegerField()
     discounted_price = models.IntegerField()

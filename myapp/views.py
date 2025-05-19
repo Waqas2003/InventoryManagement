@@ -1,6 +1,6 @@
 from rest_framework import viewsets,mixins,status
 from .models import categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
-from .serializers import CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .serializers import SalesReportSerializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -25,7 +25,7 @@ from django.views import View
 from django.db import transaction
 import time
 from django.db.models import Sum, Count, F, Q, Case, When, IntegerField
-
+from django.utils.dateparse import parse_date
 
 
 class purchaseordersViewSet(viewsets.ModelViewSet):
@@ -532,7 +532,7 @@ class PlaceOrderViewSet(viewsets.ViewSet):
             try:
                 data = serializer.validated_data
                 customer_id = data.get('customer_id')
-                area_id = data.get('area_id')  # Can be None
+                area_id = data.get('area_id')  
                 order_details = data.get('order_details')
 
                 # Validate customer
@@ -613,7 +613,7 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                     total_amount += price_per_piece * quantity
                     net_total += sub_total
 
-                    # Create order detail (not saved yet)
+                    # Create order detail 
                     sales_order_detail_obj = sales_order_detail(
                         item=item,
                         sales_order=sales_order,
@@ -933,6 +933,7 @@ class sales_orders_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixi
     serializer_class = sale_orders_Serializer
     permission_classes = [IsAuthenticated]
     
+    
 class sales_order_return_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = sales_order_return_detail.objects.all()
     serializer_class = sales_order_return_detail_Serializer
@@ -942,7 +943,6 @@ class sales_order_tax_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateM
     queryset = sales_order_tax.objects.all()
     serializer_class = sales_order_tax_Serializer
     permission_classes = [IsAuthenticated]
-
     
 class shipments_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = shipments.objects.all()
@@ -989,7 +989,123 @@ class sales_order_detail_ViewSet(CustomUpdateMixin,CustomCreateMixin,CustomDestr
     queryset = sales_order_detail.objects.all()
     serializer_class = sales_order_detail_Serializer
     permission_classes = [IsAuthenticated]
-        
+
+
+
+# Helper functions for sales calculations
+def get_daily_sales(date=None):
+    """Calculate daily sales for a specific date (defaults to today)"""
+    if date is None:
+        date = timezone.now().date()
+    
+    start_date = timezone.make_aware(datetime.combine(date, datetime.min.time()))
+    end_date = timezone.make_aware(datetime.combine(date, datetime.max.time()))
+    
+    return sales_orders.objects.filter(
+        created_at__range=(start_date, end_date)
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+
+
+def get_monthly_sales(year=None, month=None):
+    """Calculate monthly sales for a specific year/month (defaults to current)"""
+    if year is None:
+        year = timezone.now().year
+    if month is None:
+        month = timezone.now().month
+    
+    # Debug print to check values
+    print(f"Fetching monthly sales for {year}-{month}")
+    
+    # Get first and last day of month for precise filtering
+    first_day = timezone.make_aware(datetime(year, month, 1))
+    if month == 12:
+        last_day = timezone.make_aware(datetime(year+1, 1, 1) - timedelta(days=1))
+    else:
+        last_day = timezone.make_aware(datetime(year, month+1, 1) - timedelta(days=1))
+    
+    result = sales_orders.objects.filter(
+        created_at__range=(first_day, last_day)
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+    
+    # Debug print to check results
+    print(f"Monthly sales result: {result}")
+    
+    return result
+
+def get_yearly_sales(year=None):
+    """Calculate yearly sales for a specific year (defaults to current)"""
+    if year is None:
+        year = timezone.now().year
+    
+    return sales_orders.objects.filter(
+        created_at__year=year
+    ).aggregate(
+        total_sales=Sum('net_total'),
+        total_orders=Count('id')
+    )
+
+
+class SalesReportAPIView(APIView):
+    """
+    POST API View to get sales summary for daily, monthly, or yearly reports.
+    Default = today's report if no report_type is specified.
+    """
+    def post(self, request):
+        report_type = request.data.get('report_type', 'daily')
+        custom_date = request.data.get('custom_date')         # YYYY-MM-DD
+        custom_month = request.data.get('custom_month')       # YYYY-MM
+        custom_year = request.data.get('custom_year')         # YYYY
+
+        sales_data = {}
+        period_label = ""
+
+        try:
+            if report_type == 'daily':
+                if custom_date:
+                    date = datetime.strptime(custom_date, '%Y-%m-%d').date()
+                    sales_data = get_daily_sales(date)
+                    period_label = date.strftime("%d %b %Y")
+                else:
+                    sales_data = get_daily_sales()
+                    period_label = "Today"
+
+            elif report_type == 'monthly':
+                if custom_month:
+                    year, month = map(int, custom_month.split('-'))
+                    sales_data = get_monthly_sales(year, month)
+                    period_label = datetime(year, month, 1).strftime("%B %Y")
+                else:
+                    sales_data = get_monthly_sales()
+                    period_label = "This Month"
+
+            elif report_type == 'yearly':
+                if custom_year:
+                    year = int(custom_year)
+                    sales_data = get_yearly_sales(year)
+                    period_label = str(year)
+                else:
+                    sales_data = get_yearly_sales()
+                    period_label = "This Year"
+
+            else:
+                return Response({"error": "Invalid report_type. Use 'daily', 'monthly', or 'yearly'."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "report_type": report_type,
+            "period": period_label,
+            "total_sales": sales_data.get("total_sales", 0) or 0,
+            "total_orders": sales_data.get("total_orders", 0) or 0
+        }, status=status.HTTP_200_OK)
 
 # def dashboard(request):
 #     # Get counts and totals for dashboard cards
