@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import categories, notification, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import store, warehouse_stock, request_note, receive_note, transfer_note, categories, notification, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, user, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 admin.site.register(categories)
 admin.site.register(customers)
 admin.site.register(discounts)
@@ -11,7 +11,7 @@ admin.site.register(purchase_order_return)
 admin.site.register(purchase_order_return_detail)
 admin.site.register(purchase_receipts)
 admin.site.register(sales_order_discounts)
-admin.site.register(sales_orders)
+# admin.site.register(sales_orders)
 admin.site.register(sales_order_return)
 admin.site.register(sales_order_tax)
 admin.site.register(shipments)
@@ -25,3 +25,11 @@ admin.site.register(area)
 admin.site.register(sales_order_detail)
 admin.site.register(sales_order_return_detail)
 admin.site.register(notification)
+admin.site.register(store)
+admin.site.register(receive_note)
+admin.site.register(request_note)
+admin.site.register(transfer_note)
+admin.site.register(warehouse_stock)
+# @admin.register(sales_orders)
+# class SalesOrderAdmin(admin.ModelAdmin):
+#     list_filter = ['created_at']

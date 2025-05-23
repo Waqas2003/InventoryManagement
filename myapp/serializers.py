@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import receive_note, warehouse_stock, transfer_note,store, request_note, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, user, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
@@ -39,6 +39,7 @@ class purchase_order_detail_Serializer(serializers.ModelSerializer):
     class Meta:
         model = purchase_order_detail
         fields = '__all__'
+        
         
 class purchase_order_return_detail_Serializer(serializers.ModelSerializer):
     class Meta:
@@ -84,7 +85,7 @@ class inventory_adjustments_Serializer(serializers.ModelSerializer):
         }
 
     def validate_adjusted_by(self, value):
-        if not User.objects.filter(id=value.id).exists():
+        if not user.objects.filter(id=value.id).exists():
             raise serializers.ValidationError("User does not exist.")
         return value
     
@@ -151,6 +152,30 @@ class stockmanagement_Serializer(serializers.ModelSerializer):
         model = stockmanagement
         fields = '__all__'
 
+class store_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = store
+        fields = '__all__'
+        
+class request_note_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = request_note
+        fields = '__all__'
+        
+class transfer_note_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = transfer_note
+        fields = '__all__'
+class warehouse_stock_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = warehouse_stock
+        fields = '__all__'
+
+class receive_note_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = receive_note
+        fields = '__all__'                        
+
 class tax_configurations_Serializer(serializers.ModelSerializer):
     class Meta:
         model = tax_configurations
@@ -158,7 +183,7 @@ class tax_configurations_Serializer(serializers.ModelSerializer):
 
 class AuthUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = user
         fields = '__all__'
 
 class vendors_Serializer(serializers.ModelSerializer):
@@ -216,3 +241,6 @@ class SalesReportSerializer(serializers.Serializer):
     total_sales = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_orders = serializers.IntegerField()
     total_items_sold = serializers.IntegerField()
+    
+    
+    

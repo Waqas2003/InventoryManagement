@@ -17,7 +17,7 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(f"❌ Error: {str(e)}", style='ERROR')
         
-        schedule.every().day.at("22:02").do(update_discounts)
+        schedule.every().day.at("19:09").do(update_discounts)
         
         # # For testing, run every 60 seconds instead:
         # schedule.every(60).seconds.do(update_discounts)
@@ -31,3 +31,6 @@ class Command(BaseCommand):
                 time.sleep(1)
         except KeyboardInterrupt:
             self.stdout.write("🛑 Scheduler stopped by user")
+            
+""" Command for starting a server for discount 
+      python manage.py discount_scheduler"""           
