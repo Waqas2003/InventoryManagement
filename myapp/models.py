@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 
-class user(AbstractUser):
+class User(AbstractUser):
     # add your custom fields here
     user_type = models.CharField(max_length=25, choices=[
         ('admin','Admin'),
@@ -109,7 +109,7 @@ class inventory_adjustments(models.Model):
     sales_order_return = models.ForeignKey('sales_order_return', models.PROTECT,null=True,blank=True)
     adjustment_type = models.CharField(max_length=15, choices=adjustment_type_choices, default='return',blank=True, null=True)
     quantity = models.IntegerField()
-    adjusted_by = models.ForeignKey(user, models.DO_NOTHING, blank=True, null=True)
+    adjusted_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
     adjustment_reason = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     is_processed = models.BooleanField(default=False)
@@ -209,7 +209,7 @@ class purchase_order_return(models.Model):
     vendor = models.ForeignKey('vendors',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    created_by = models.ForeignKey(user, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
+    created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
     class Meta:        
         db_table = 'purchase_order_return'
@@ -313,7 +313,7 @@ class sales_order_return(models.Model):
     customer = models.ForeignKey('customers',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    created_by = models.ForeignKey(user, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
+    created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
 
     class Meta:        
@@ -439,7 +439,7 @@ class warehouses(models.Model):
     warehouse_location = models.CharField(max_length=255)
     capacity = models.IntegerField()
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    user = models.ForeignKey(user, models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:        
         db_table = 'warehouses'
@@ -545,7 +545,7 @@ class transfer_note(models.Model):
         ('intransit','Intransit'),
         ('delivered', 'Delivered')
     ], default='dispatched')
-    transferred_by = models.ForeignKey(user,on_delete=models.DO_NOTHING, null= True, blank= True) 
+    transferred_by = models.ForeignKey(User,on_delete=models.DO_NOTHING, null= True, blank= True) 
     remarks = models.TextField(max_length=255, null= True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     
@@ -562,7 +562,7 @@ class receive_note(models.Model):
     item = models.ForeignKey(items, on_delete=models.CASCADE)
     store_id = models.ForeignKey(store, on_delete=models.CASCADE)
     quantity_received = models.PositiveIntegerField()
-    received_by = models.ForeignKey(user, on_delete=models.CASCADE, null= True, blank=True)    
+    received_by = models.ForeignKey(User, on_delete=models.CASCADE, null= True, blank=True)    
     received_at=models.DateTimeField(default=timezone.now)
     
     class Meta:

@@ -1,5 +1,5 @@
 from rest_framework import viewsets,mixins,status
-from .models import categories, warehouse_stock, store,request_note, receive_note, transfer_note, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, user, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import categories, warehouse_stock, store,request_note, receive_note, transfer_note, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 from .serializers import SalesReportSerializer, warehouse_stock_Serializer, request_note_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
@@ -177,8 +177,8 @@ def process_return(request_data, user):
                 raise ValueError(f"Invalid return type. Must be one of: {', '.join(valid_return_types)}")
 
             try:
-                create_by_user =user.objects.get(id=request_data['created_by'])
-            except user.DoesNotExist:
+                create_by_user = User.objects.get(id=request_data['created_by'])
+            except User.DoesNotExist:
                 raise ValueError(f"User with ID {request_data['created_by']} does not exist")
                     
             # 2. Verify Sales Order exists
@@ -532,7 +532,7 @@ class PlaceOrderViewSet(viewsets.ViewSet):
             try:
                 data = serializer.validated_data
                 customer_id = data.get('customer_id')
-                area_id = data.get('area_id')          
+                area_id = data.get('area_id')  
                 order_details = data.get('order_details')
 
                 # Validate customer
@@ -990,7 +990,7 @@ class tax_configurations_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpda
     permission_classes = [IsAuthenticated]
     
 class AuthUser_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
-    queryset = user.objects.all()
+    queryset = User.objects.all()
     serializer_class = AuthUserSerializer
     permission_classes = [IsAuthenticated]
     

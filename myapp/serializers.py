@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import receive_note, warehouse_stock, transfer_note,store, request_note, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, user, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import receive_note, warehouse_stock, transfer_note,store, request_note, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
@@ -85,7 +85,7 @@ class inventory_adjustments_Serializer(serializers.ModelSerializer):
         }
 
     def validate_adjusted_by(self, value):
-        if not user.objects.filter(id=value.id).exists():
+        if not User.objects.filter(id=value.id).exists():
             raise serializers.ValidationError("User does not exist.")
         return value
     
@@ -183,7 +183,7 @@ class tax_configurations_Serializer(serializers.ModelSerializer):
 
 class AuthUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = user
+        model = User
         fields = '__all__'
 
 class vendors_Serializer(serializers.ModelSerializer):
