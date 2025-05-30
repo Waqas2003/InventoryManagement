@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import receive_note, warehouse_stock, transfer_note,store, request_note, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import receive_note, transfer_note_detail, warehouse_stock, transfer_note,store, request_note, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
@@ -85,7 +85,7 @@ class inventory_adjustments_Serializer(serializers.ModelSerializer):
         }
 
     def validate_adjusted_by(self, value):
-        if not User.objects.filter(id=value.id).exists():
+        if not Custom_User.objects.filter(id=value.id).exists():
             raise serializers.ValidationError("User does not exist.")
         return value
     
@@ -166,6 +166,15 @@ class transfer_note_Serializer(serializers.ModelSerializer):
     class Meta:
         model = transfer_note
         fields = '__all__'
+        extra_kwargs = {
+            'warehouse_id': {'required': False}  
+        }
+        
+class transfer_note_detail_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = transfer_note_detail
+        fields = '__all__'       
+        
 class warehouse_stock_Serializer(serializers.ModelSerializer):
     class Meta:
         model = warehouse_stock
@@ -183,7 +192,7 @@ class tax_configurations_Serializer(serializers.ModelSerializer):
 
 class AuthUserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
+        model = Custom_User
         fields = '__all__'
 
 class vendors_Serializer(serializers.ModelSerializer):

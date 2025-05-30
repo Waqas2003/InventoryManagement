@@ -1,6 +1,6 @@
 from rest_framework import viewsets,mixins,status
-from .models import categories, warehouse_stock, store,request_note, receive_note, transfer_note, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
-from .serializers import SalesReportSerializer, warehouse_stock_Serializer, request_note_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .models import categories, warehouse_stock, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .serializers import SalesReportSerializer, warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, stockmanagement_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.db import models
-from django.core.exceptions import ValidationError,ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist, ValidationError
 from django.utils import timezone
 from django.utils.timezone import now
 from datetime import datetime, timedelta
@@ -177,8 +177,8 @@ def process_return(request_data, user):
                 raise ValueError(f"Invalid return type. Must be one of: {', '.join(valid_return_types)}")
 
             try:
-                create_by_user = User.objects.get(id=request_data['created_by'])
-            except User.DoesNotExist:
+                create_by_user = Custom_User.objects.get(id=request_data['created_by'])
+            except Custom_User.DoesNotExist:
                 raise ValueError(f"User with ID {request_data['created_by']} does not exist")
                     
             # 2. Verify Sales Order exists
@@ -395,136 +395,10 @@ def check_safety_stock(item):
                         "message": f"Restock '{item.item_name}'! Low stock alert."
                     }
                 )
-    
-    
-# class PlaceOrderViewSet(viewsets.ViewSet):
-#     @transaction.atomic
-#     def create(self, request):
-#         serializer = place_order_Serializer(data=request.data)
-#         if serializer.is_valid():
-#             try:
-#                 data = serializer.validated_data
-#                 customer_id = data.get('customer_id')
-#                 area_id = data.get('area_id')
-#                 order_details = data.get('order_details')
-
-#                 # Validate customer
-#                 customer = customers.objects.get(id=customer_id)
-
-#                 # Validate area
-#                 area_obj = area.objects.get(id=area_id)
-
-#                 # Initialize order totals
-#                 total_amount = 0
-#                 total_discount = 0
-#                 total_tax = 0
-#                 net_total = 0
-
-#                 # Create sales order
-#                 sales_order = sales_orders(
-#                     sales_order_number=f"SO{customer_id}{int(time.time())}", 
-#                     customer=customer,
-#                     area=area_obj,
-#                     order_status='Delivered',
-#                     total_amount=0,  
-#                     discount=0,  
-#                     tax_amount=0,  
-#                     net_total=0, 
-#                     created_at=timezone.now()
-#                 )
-#                 sales_order.save()
-
-#                 # Process each item in the order
-#                 for item_detail in order_details:
-#                     item_id = item_detail.get('item_id')
-#                     quantity = int(item_detail.get('quantity'))  
-#                     discount_id = item_detail.get('discount_id')
-#                     tax_id = item_detail.get('tax_id')
-
-#                     # Validate item
-#                     item = items.objects.get(id=item_id)
-
-#                     # Retrieve the related StockItems instance
-#                     stock_item = item.stock_items.first()  
-#                     if not stock_item:
-#                         raise ValidationError(f"Item {item.item_name} has no stock information")
-
-#                     # Convert stock_item.quantity to an integer
-#                     stock_quantity = int(stock_item.quantity)
-
-#                     # Check stock availability
-#                     if stock_quantity < quantity:
-#                         raise ValidationError(f"Item {item.item_name} is out of stock")
-
-#                     # Calculate price per piece
-#                     price_per_piece = item.item_price
-
-#                     # Apply discount
-#                     discounted_price = price_per_piece
-#                     if discount_id:
-#                         discount = discounts.objects.get(id=discount_id)
-#                         if discount and discount.is_active:
-#                             discounted_price = price_per_piece * (1 - discount.discount_percentage / 100)
-#                             total_discount += (price_per_piece - discounted_price) * quantity
-
-                   
-#                     tax_price = 0
-#                     if tax_id:
-#                         tax = tax_configurations.objects.get(id=tax_id)
-#                     if tax:
-#                         tax_price = discounted_price * (tax.rate_percentage / 100)
-#                         total_tax += tax_price * quantity
-
-                    
-#                     sub_total = (discounted_price + tax_price) * quantity
-
-                    
-#                     total_amount += price_per_piece * quantity
-#                     net_total += sub_total
-
-                    
-#                     sales_order_detail_obj = sales_order_detail(
-#                         item=item,
-#                         sales_order=sales_order,
-#                         price_per_piece=price_per_piece,
-#                         quantity=quantity,
-#                         discounted_price=discounted_price,
-#                         price_after_discount=discounted_price,
-#                         tax_price=tax_price,
-#                         price_after_tax=discounted_price + tax_price,
-#                         sub_total=sub_total
-#                     )
-#                     sales_order_detail_obj.save()
-
-                    
-#                     stock_item.quantity = stock_quantity - quantity
-#                     stock_item.save()
-#                     check_safety_stock(item)
-
-                
-#                 net_total += area_obj.delivery_charges
-
-                
-#                 sales_order.total_amount = total_amount
-#                 sales_order.discount = total_discount
-#                 sales_order.tax_amount = total_tax
-#                 sales_order.net_total = net_total
-#                 sales_order.save()
-
-                
-#                 customer.total_bill += net_total
-#                 if customer.total_bill > customer.credit_limit:
-#                     raise ValidationError("Order exceeds customer's credit limit")
-#                 customer.save()
-
-#                 return Response({'message': 'Order placed successfully', 'order_id': sales_order.id}, status=status.HTTP_201_CREATED)
-
-#             except Exception as e:
-#                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-#         else:
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PlaceOrderViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+
     @transaction.atomic
     def create(self, request):
         serializer = place_order_Serializer(data=request.data)
@@ -534,10 +408,21 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                 customer_id = data.get('customer_id')
                 area_id = data.get('area_id')  
                 order_details = data.get('order_details')
+                
+                # Get the current user and their store
+                current_user = request.user
+                if not current_user.store:
+                    raise ValidationError("User is not associated with any store")
+                store = current_user.store
 
                 # Validate customer
-                customer = customers.objects.get(id=customer_id)
-
+                try:
+                    customer = customers.objects.get(id=customer_id)
+                    if customer.credit_limit is None:
+                        customer.credit_limit = Decimal('0')
+                except customers.DoesNotExist:
+                    raise ValidationError("Customer not found")        
+                
                 # Validate area if provided
                 area_obj = None
                 if area_id:
@@ -558,31 +443,34 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                     total_amount=0,  
                     discount=0,  
                     tax_amount=0,  
-                    net_total=0, 
+                    net_total=0,
+                    store=store,  # Associate order with user's store
                     created_at=timezone.now()
                 )
 
                 # Process each item in the order
+                order_items = []
                 for item_detail in order_details:
                     item_id = item_detail.get('item_id')
                     quantity = int(item_detail.get('quantity'))  
                     discount_id = item_detail.get('discount_id')
-                    tax_id = item_detail.get('tax_id')  
+                    tax_id = item_detail.get('tax_id') 
 
                     # Validate item
                     item = items.objects.get(id=item_id)
 
-                    # Retrieve the related StockItems instance
-                    stock_item = item.stock_items.first()  
-                    if not stock_item:
-                        raise ValidationError(f"Item {item.item_name} has no stock information")
+                    # Retrieve the related StockItems instance for this store
+                    try:
+                        stock_item = stock_items.objects.get(item=item, store=store)
+                    except stock_items.DoesNotExist:
+                        raise ValidationError(f"Item {item.item_name} is not available in your store")
 
                     # Convert stock_item.quantity to an integer
                     stock_quantity = int(stock_item.quantity)
 
                     # Check stock availability (but don't modify yet)
                     if stock_quantity < quantity:
-                        raise ValidationError(f"Item {item.item_name} is out of stock")
+                        raise ValidationError(f"Item {item.item_name} is out of stock in your store")
 
                     # Calculate price per piece
                     price_per_piece = item.item_price
@@ -613,18 +501,16 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                     total_amount += price_per_piece * quantity
                     net_total += sub_total
 
-                    # Create order detail 
-                    sales_order_detail_obj = sales_order_detail(
-                        item=item,
-                        sales_order=sales_order,
-                        price_per_piece=price_per_piece,
-                        quantity=quantity,
-                        discounted_price=discounted_price,
-                        price_after_discount=discounted_price,
-                        tax_price=tax_price,
-                        price_after_tax=discounted_price + tax_price,
-                        sub_total=sub_total
-                    )
+                    # Create order detail object (not saved yet)
+                    order_items.append({
+                        'item': item,
+                        'price_per_piece': price_per_piece,
+                        'quantity': quantity,
+                        'discounted_price': discounted_price,
+                        'tax_price': tax_price,
+                        'sub_total': sub_total,
+                        'stock_item': stock_item
+                    })
 
                 # Add delivery charges if area is specified
                 if area_obj:
@@ -634,7 +520,6 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                 if customer.total_bill + net_total > customer.credit_limit:
                     raise ValidationError("Order exceeds customer's credit limit")
 
-
                 # Save sales order with calculated totals
                 sales_order.total_amount = total_amount
                 sales_order.discount = total_discount
@@ -642,31 +527,263 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                 sales_order.net_total = net_total
                 sales_order.save()
 
-                # Save all order details
-                for item_detail in order_details:
+                # Save all order details and update stock
+                for item_data in order_items:
+                    # Create order detail
+                    sales_order_detail_obj = sales_order_detail(
+                        item=item_data['item'],
+                        sales_order=sales_order,
+                        price_per_piece=item_data['price_per_piece'],
+                        quantity=item_data['quantity'],
+                        discounted_price=item_data['discounted_price'],
+                        price_after_discount=item_data['discounted_price'],
+                        tax_price=item_data['tax_price'],
+                        price_after_tax=item_data['discounted_price'] + item_data['tax_price'],
+                        sub_total=item_data['sub_total']
+                    )
                     sales_order_detail_obj.save()
 
-                # Update stock quantities
-                for item_detail in order_details:
-                    item_id = item_detail.get('item_id')
-                    quantity = int(item_detail.get('quantity'))
-                    item = items.objects.get(id=item_id)
-                    stock_item = item.stock_items.first()
-                    stock_item.quantity = int(stock_item.quantity) - quantity
+                    # Update stock quantity
+                    stock_item = item_data['stock_item']
+                    new_quantity = int(stock_item.quantity) - item_data['quantity']
+                    stock_item.quantity = new_quantity
                     stock_item.save()
-                    check_safety_stock(item)
+
+                    # Check safety stock and create notification/request if needed
+                    if new_quantity <= stock_item.safety_stock_level:
+                        # Create notification
+                        notification.objects.create(
+                            item_choices='store',
+                            message=f"Item {item_data['item'].item_name} has reached safety stock level in store {store.id}",
+                            item=item_data['item'],
+                            created_at=timezone.now()
+                        )
+
+                        # Create request note to warehouse
+                        request_note_instance = request_note.objects.create(
+                            store=store,
+                            status='pending',
+                            remarks=f"Auto-generated request due to safety stock level reached for item {item_data['item'].item_name}",
+                            created_at=timezone.now(),
+                            created_by = current_user
+                        )
+
+                        # Create request note detail to warehouse
+                        request_note_detail_obj = request_note_detail(
+                            item=item_data['item'],
+                            quantity=stock_item.safety_stock_level * 5,
+                            request_note=request_note_instance                            
+                        )
+                        request_note_detail_obj.save()
 
                 # Update customer's total bill
                 customer.total_bill += net_total
                 customer.save()
 
-                return Response({'message': 'Order placed successfully', 'order_id': sales_order.id}, status=status.HTTP_201_CREATED)
+                return Response({
+                    'message': 'Order placed successfully', 
+                    'order_id': sales_order.id
+                }, status=status.HTTP_201_CREATED)
 
             except Exception as e:
                 # Transaction will be rolled back automatically
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+  
+# class PlaceOrderViewSet(viewsets.ViewSet):
+#     permission_classes = [IsAuthenticated]
+#     @transaction.atomic
+#     def create(self, request):
+#         serializer = place_order_Serializer(data=request.data)
+#         if serializer.is_valid():
+#             try:
+#                 data = serializer.validated_data
+#                 customer_id = data.get('customer_id')
+#                 area_id = data.get('area_id')  
+#                 order_details = data.get('order_details')
+                
+#                 # Get the current user and their store
+#                 current_user = request.user
+#                 if not current_user.store:
+#                     raise ValidationError("User is not associated with any store")
+#                 store = current_user.store
+
+#                 # Validate customer
+#                 try:
+#                     customer = customers.objects.get(id=customer_id)
+#                     if customer.credit_limit is None:
+#                         customer.credit_limit=Decimal('0')
+#                 except customers.DoesNotExist:
+#                     raise ValidationError("Customer Doesn't Found")        
+                
+#                 # Validate area if provided
+#                 area_obj = None
+#                 if area_id:
+#                     area_obj = area.objects.get(id=area_id)
+
+#                 # Initialize order totals
+#                 total_amount = 0
+#                 total_discount = 0
+#                 total_tax = 0
+#                 net_total = 0
+
+#                 # Create sales order (not saved yet)
+#                 sales_order = sales_orders(
+#                     sales_order_number=f"SO{customer_id}{int(time.time())}", 
+#                     customer=customer,
+#                     area=area_obj,
+#                     order_status='Delivered',
+#                     total_amount=0,  
+#                     discount=0,  
+#                     tax_amount=0,  
+#                     net_total=0,
+#                     store=store,  # Associate order with user's store
+#                     created_at=timezone.now()
+#                 )
+
+#                 # Process each item in the order
+#                 order_items = []
+#                 for item_detail in order_details:
+#                     item_id = item_detail.get('item_id')
+#                     quantity = int(item_detail.get('quantity'))  
+#                     discount_id = item_detail.get('discount_id')
+#                     tax_id = item_detail.get('tax_id') 
+
+#                     # Validate item
+#                     item = items.objects.get(id=item_id)
+
+#                     # Retrieve the related StockItems instance for this store
+#                     try:
+#                         stock_item = stock_items.objects.get(item=item, store=store)
+#                     except stock_items.DoesNotExist:
+#                         raise ValidationError(f"Item {item.item_name} is not available in your store")
+
+#                     # Convert stock_item.quantity to an integer
+#                     stock_quantity = int(stock_item.quantity)
+
+#                     # Check stock availability (but don't modify yet)
+#                     if stock_quantity < quantity:
+#                         raise ValidationError(f"Item {item.item_name} is out of stock in your store")
+
+#                     # Calculate price per piece
+#                     price_per_piece = item.item_price
+
+#                     # Apply discount
+#                     discounted_price = price_per_piece
+#                     if discount_id:
+#                         discount = discounts.objects.get(id=discount_id)
+#                         if discount and discount.is_active:
+#                             discounted_price = price_per_piece * (1 - discount.discount_percentage / 100)
+#                             total_discount += (price_per_piece - discounted_price) * quantity
+
+#                     # Apply tax - either from item or from input tax_id
+#                     tax_price = 0
+#                     if tax_id:
+#                         # Use the tax configuration specified in the input
+#                         tax_config = tax_configurations.objects.get(id=tax_id)
+#                         if tax_config.applies_to in ['Sales', 'Both']:
+#                             tax_price = discounted_price * (tax_config.rate_percentage / 100)
+#                             total_tax += tax_price * quantity
+#                     elif item.tax:
+#                         # Fall back to item's default tax if no tax_id provided
+#                         tax_price = discounted_price * (item.tax.rate_percentage / 100)
+#                         total_tax += tax_price * quantity
+
+#                     sub_total = (discounted_price + tax_price) * quantity
+
+#                     total_amount += price_per_piece * quantity
+#                     net_total += sub_total
+
+#                     # Create order detail object (not saved yet)
+#                     order_items.append({
+#                         'item': item,
+#                         'price_per_piece': price_per_piece,
+#                         'quantity': quantity,
+#                         'discounted_price': discounted_price,
+#                         'tax_price': tax_price,
+#                         'sub_total': sub_total,
+#                         'stock_item': stock_item
+#                     })
+
+#                 # Add delivery charges if area is specified
+#                 if area_obj:
+#                     net_total += area_obj.delivery_charges
+
+#                 # Check credit limit before saving anything
+#                 if customer.total_bill + net_total > customer.credit_limit:
+#                     raise ValidationError("Order exceeds customer's credit limit")
+
+#                 # Save sales order with calculated totals
+#                 sales_order.total_amount = total_amount
+#                 sales_order.discount = total_discount
+#                 sales_order.tax_amount = total_tax
+#                 sales_order.net_total = net_total
+#                 sales_order.save()
+
+#                 # Save all order details and update stock
+#                 for item_data in order_items:
+#                     # Create order detail
+#                     sales_order_detail_obj = sales_order_detail(
+#                         item=item_data['item'],
+#                         sales_order=sales_order,
+#                         price_per_piece=item_data['price_per_piece'],
+#                         quantity=item_data['quantity'],
+#                         discounted_price=item_data['discounted_price'],
+#                         price_after_discount=item_data['discounted_price'],
+#                         tax_price=item_data['tax_price'],
+#                         price_after_tax=item_data['discounted_price'] + item_data['tax_price'],
+#                         sub_total=item_data['sub_total']
+#                     )
+#                     sales_order_detail_obj.save()
+
+#                     # Update stock quantity
+#                     stock_item = item_data['stock_item']
+#                     new_quantity = int(stock_item.quantity) - item_data['quantity']
+#                     stock_item.quantity = new_quantity
+#                     stock_item.save()
+
+#                     # Check safety stock and create notification/request if needed
+#                     if new_quantity <= stock_item.safety_stock_level:
+#                         # Create notification
+#                         notification.objects.create(
+#                             item_choices='store',
+#                             message=f"Item {item_data['item'].item_name} has reached safety stock level in store {store.id}",
+#                             item=item_data['item'],
+#                             created_at=timezone.now()
+#                         )
+
+#                         # Create request note to warehouse
+#                         request_note.objects.create(
+#                             store=store,
+#                             status='pending',
+#                             remarks=f"Auto-generated request due to safety stock level reached for item {item_data['item'].item_name}",
+#                             created_at=timezone.now()
+#                         )
+
+                        
+#                         # create reuqest note detail to warehouse
+#                         request_note_detail_obj=request_note_detail(
+#                             item = item_data['item'],
+#                             quantity = stock_item.safety_stock_level * 5,
+#                             request_note=request_note                            
+#                         )
+#                         request_note_detail_obj.save() 
+
+
+#                 # Update customer's total bill
+#                 customer.total_bill += net_total
+#                 customer.save()
+
+#                 return Response({'message': 'Order placed successfully', 'order_id': sales_order.id}, status=status.HTTP_201_CREATED)
+
+#             except Exception as e:
+#                 # Transaction will be rolled back automatically
+#                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+#         else:
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+  
     
 class SalesReportView(APIView):
     def get(self, request):
@@ -713,6 +830,126 @@ class transfer_note_ViewSet(CustomCreateMixin, CustomDestroyMixin, CustomUpdateM
     queryset = transfer_note.objects.all()
     serializer_class = transfer_note_Serializer
     permission_classes= [IsAuthenticated]
+
+class transfer_note_detail_ViewSet(CustomCreateMixin, CustomUpdateMixin, CustomDestroyMixin, viewsets.ViewSet):
+    queryset = transfer_note_detail.objects.all()
+    serializer_class = transfer_note_detail_Serializer
+    permission_classes= [IsAuthenticated]
+
+class TransferNoteViewSet(viewsets.ModelViewSet):
+    queryset = transfer_note.objects.all()
+    serializer_class = transfer_note_Serializer
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        try:
+            current_user = request.user
+            if not hasattr(current_user, 'warehouse') or not current_user.warehouse:
+                raise ValidationError("User is not associated with any warehouse")
+            
+            warehouse = current_user.warehouse
+            items_data = request.data.get('items', [])
+            remarks = request.data.get('remarks', '')
+
+            # Validate request note if provided
+            request_note_obj = None
+            request_note_id = request.data.get('request_note_id')
+            if request_note_id:
+                try:
+                    request_note_obj = request_note.objects.select_related('store').get(id=request_note_id)
+                    if request_note_obj.status != 'approved':
+                        raise ValidationError(
+                            f"Cannot create transfer from request note {request_note_id} "
+                            f"with status '{request_note_obj.status}'. "
+                            f"Request note must be 'approved'."
+                        )
+                except request_note.DoesNotExist:
+                    raise ValidationError(f"Request note {request_note_id} not found")
+
+            # If no request note provided, validate items directly
+            if not request_note_id and not items_data:
+                raise ValidationError("Either request_note_id or items must be provided")
+
+            # Create the transfer note
+            transfer_note_obj = transfer_note.objects.create(
+                request_note=request_note_obj,
+                warehouse_id=warehouse.id,  # Explicitly set warehouse_id
+                transferred_by_id=current_user.id,  # Explicitly set user ID
+                remarks=remarks,
+                status='pending'
+            )
+
+            # Process items - use items from request note if provided
+            items_to_process = items_data if not request_note_obj else [
+                {'item_id': detail.item.id, 'quantity': detail.quantity}
+                for detail in request_note_obj.request_note_detail_set.all()
+            ]
+
+            for item_data in items_to_process:
+                item_id = item_data.get('item_id')
+                quantity = int(item_data.get('quantity', 0))
+                
+                if quantity <= 0:
+                    raise ValidationError(f"Quantity must be positive for item {item_id}")
+
+                try:
+                    item = items.objects.get(id=item_id)
+                    stock = warehouse_stock.objects.select_for_update().get(
+                        warehouse=warehouse, 
+                        item=item
+                    )
+                    
+                    if stock.quantity < quantity:
+                        raise ValidationError(
+                            f"Insufficient stock for {item.item_name} "
+                            f"(Available: {stock.quantity}, Requested: {quantity})"
+                        )
+
+                    # Create transfer detail
+                    transfer_note_detail.objects.create(
+                        item=item,
+                        transfer_note=transfer_note_obj,
+                        quantity=quantity,  # Fixed field name (was quantity_received)
+                        store=request_note_obj.store if request_note_obj else None,
+                        warehouse=warehouse
+                    )
+
+                    # Update stock using F() to avoid race conditions
+                    stock.quantity = F('quantity') - quantity
+                    stock.save()
+
+                    # Refresh to get updated value
+                    stock.refresh_from_db()
+
+                    # Check safety stock
+                    if (stock.safety_stock_level is not None and 
+                        stock.quantity <= stock.safety_stock_level):
+                        notification.objects.create(
+                            item_choices='warehouse',
+                            message=f"{item.item_name} reached safety stock in {warehouse.warehouse_name}",
+                            item=item,
+                            warehouse=warehouse
+                        )
+
+                except items.DoesNotExist:
+                    raise ValidationError(f"Item {item_id} not found")
+                except warehouse_stock.DoesNotExist:
+                    raise ValidationError(f"Item {item_id} not available in warehouse")
+
+            return Response({
+                'message': 'Transfer note created successfully',
+                'transfer_note_id': transfer_note_obj.id,
+                'status': transfer_note_obj.status
+            }, status=status.HTTP_201_CREATED)
+
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {'error': f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
 class receive_note_ViewSet(CustomCreateMixin, CustomUpdateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset =  receive_note.objects.all()
@@ -990,7 +1227,7 @@ class tax_configurations_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpda
     permission_classes = [IsAuthenticated]
     
 class AuthUser_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = Custom_User.objects.all()
     serializer_class = AuthUserSerializer
     permission_classes = [IsAuthenticated]
     
@@ -1070,7 +1307,6 @@ def get_yearly_sales(year=None):
         total_sales=Sum('net_total'),
         total_orders=Count('id')
     )
-
 
 class SalesReportAPIView(APIView):
     """

@@ -107,14 +107,13 @@ WSGI_APPLICATION = 'inventorymanagementdb.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pos', 
+        'NAME': 'bidecon', 
         'USER': 'root',  
         'PASSWORD': '3122003', 
         'HOST': 'localhost',  
         'PORT': '3306',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -134,7 +133,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -147,7 +145,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -158,9 +155,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 # TIME_ZONE = 'Asia/Karachi'
 # USE_TZ = True 
 
 # settings.py
-AUTH_USER_MODEL = 'myapp.User'
+AUTH_USER_MODEL = 'myapp.Custom_User'

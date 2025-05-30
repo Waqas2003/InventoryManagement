@@ -1,18 +1,15 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser,User
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.utils import timezone
+from django.utils import timezone   
+from django.conf import settings
 
-
-class User(AbstractUser):
-    # add your custom fields here
-    user_type = models.CharField(max_length=25, choices=[
-        ('admin','Admin'),
-        ('manager','Manager'),
-        ('cashier','Cashier')       
-    ])
-    store = models.ForeignKey('store', on_delete=models.SET_NULL, null=True, blank=True)
-
+class Custom_User(AbstractUser):
+    user_type = models.CharField(max_length= 25, choices=[('admin', 'Admin'),('manager', 'Manager'),('cashier','Cashier')], default='cashier')
+    store = models.ForeignKey('store', on_delete=models.DO_NOTHING, null=True, blank=True)
+    warehouse = models.ForeignKey('warehouses', on_delete=models.DO_NOTHING, null=True, blank=True)
+    class Meta:
+        db_table = 'custom_user' 
 
 class categories(models.Model):
     id = models.AutoField(primary_key=True)
@@ -30,8 +27,7 @@ class categories(models.Model):
     def __str__(self):
         return self.category_name
 
-    class Meta:
-        
+    class Meta:        
         db_table = 'categories'
         verbose_name_plural = "Categories"
 
@@ -40,7 +36,6 @@ class customers(models.Model):
         ('Regular', 'regular'),
         ('Walkin', 'walkin'),
     ]
-
     id = models.AutoField(primary_key=True)
     customer_name = models.CharField(max_length=255)
     email = models.CharField(unique=True, max_length=255, blank=True, null=True)
@@ -52,14 +47,12 @@ class customers(models.Model):
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     customer_type = models.CharField(max_length=7, choices=customer_types, default='regular')
     
-    class Meta:
-        
+    class Meta:        
         db_table = 'customers'
         verbose_name_plural = "customers"
 
     def __str__(self):
          return self.customer_name
-
 
 class discounts(models.Model):
     applies_to_choices = [
@@ -68,7 +61,6 @@ class discounts(models.Model):
         ('Customer', 'customer'),
         ('Order', 'order'),
     ]
-
     id = models.AutoField(primary_key=True)
     discount_name = models.CharField(max_length=255)
     discount_desc = models.TextField(blank=True, null=True)
@@ -87,14 +79,12 @@ class discounts(models.Model):
             self.is_active = True  
         super().save(*args, **kwargs)
     
-    class Meta:
-        
+    class Meta:        
         db_table = 'discounts'
         verbose_name_plural = "discounts"
 
     def __str__(self):
          return self.discount_name
-
 
 class inventory_adjustments(models.Model):
     adjustment_type_choices = [
@@ -109,7 +99,7 @@ class inventory_adjustments(models.Model):
     sales_order_return = models.ForeignKey('sales_order_return', models.PROTECT,null=True,blank=True)
     adjustment_type = models.CharField(max_length=15, choices=adjustment_type_choices, default='return',blank=True, null=True)
     quantity = models.IntegerField()
-    adjusted_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
+    adjusted_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True)
     adjustment_reason = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     is_processed = models.BooleanField(default=False)
@@ -117,7 +107,6 @@ class inventory_adjustments(models.Model):
     class Meta:        
         db_table = 'inventory_adjustments'
         verbose_name_plural = "inventory_adjustments"       
-
 
 class items(models.Model):
     item_type_choices = [
@@ -137,8 +126,7 @@ class items(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     last_restocked_at = models.DateTimeField(null=True, blank=True)
     safety_stock_level = models.IntegerField(default=10) 
-
-   
+    
     parent = models.ForeignKey(
         'self', 
         on_delete=models.SET_NULL,  
@@ -146,8 +134,7 @@ class items(models.Model):
         null=True,
         related_name="subitems"  
     )
-    class Meta:
-        
+    class Meta:        
         db_table = 'items'
         verbose_name_plural = "items"
 
@@ -162,7 +149,6 @@ class purchase_orders(models.Model):
         ('Completed', 'completed'),
         ('Canceled', 'canceled'),
     ]
-
     id = models.AutoField(primary_key=True)
     purchase_order_number = models.CharField(unique=True, max_length=100)
     vendor = models.ForeignKey('vendors', models.CASCADE, blank=True, null=True)
@@ -209,7 +195,7 @@ class purchase_order_return(models.Model):
     vendor = models.ForeignKey('vendors',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
     class Meta:        
         db_table = 'purchase_order_return'
@@ -282,6 +268,7 @@ class sales_orders(models.Model):
     ]
 
     id = models.AutoField(primary_key=True)
+    store = models.ForeignKey('store', on_delete=models.DO_NOTHING, blank= True, null= True)
     area = models.ForeignKey(area, on_delete=models.SET_NULL, blank=True, null=True)
     sales_order_number = models.CharField(unique=True, max_length=100)
     customer = models.ForeignKey('customers', models.DO_NOTHING, blank=True, null=True)
@@ -313,7 +300,7 @@ class sales_order_return(models.Model):
     customer = models.ForeignKey('customers',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    created_by = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
 
 
     class Meta:        
@@ -378,7 +365,7 @@ class stock_items(models.Model):
     last_restocked_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
 
-    class Meta:        
+    class Meta:                 
         db_table = 'stock_items'
         verbose_name_plural = "stock_items"
 
@@ -414,7 +401,6 @@ class tax_configurations(models.Model):
     def __str__(self):
          return self.tax_name
 
-
 class vendors(models.Model):
     id = models.AutoField(primary_key=True)
     vendor_name = models.CharField(max_length=255)
@@ -439,7 +425,6 @@ class warehouses(models.Model):
     warehouse_location = models.CharField(max_length=255)
     capacity = models.IntegerField()
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-    user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:        
         db_table = 'warehouses'
@@ -450,7 +435,7 @@ class warehouses(models.Model):
      
 class warehouse_stock(models.Model):
     id = models.AutoField(primary_key=True)
-    warehouse_id = models.ForeignKey(warehouses,on_delete=models.CASCADE)
+    warehouse = models.ForeignKey(warehouses,on_delete=models.CASCADE)
     item = models.ForeignKey(items,on_delete=models.CASCADE)
     quantity = models.IntegerField()
     safety_stock_level = models.IntegerField()
@@ -489,7 +474,7 @@ class notification(models.Model):
     item_choices = models.CharField(max_length=10, choices=  notification_type_choices, default= 'store')
     message = models.TextField(null=True,blank=2)
     item = models.ForeignKey('Items',on_delete=models.CASCADE, null = True, blank=True)
-    warehouse = models.ForeignKey('warehouses', on_delete=models.CASCADE, null = True)
+    warehouse = models.ForeignKey('warehouses', on_delete=models.CASCADE, null = True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)        
 
@@ -505,7 +490,7 @@ class store(models.Model):
     store_name = models.TextField(null= True, blank = True)
     store_location = models.TextField( max_length=255 , null= True, blank=True)
     created_at = models.DateTimeField(default= timezone.now, blank=True, null= True)
-    warehouse_id = models.ForeignKey(warehouses, on_delete=models.DO_NOTHING, null=True, blank=True)
+    warehouse = models.ForeignKey(warehouses, on_delete=models.DO_NOTHING, null=True, blank=True)
     
     class Meta:
         db_table = 'store'
@@ -516,61 +501,74 @@ class store(models.Model):
         
 class request_note(models.Model):
     id = models.AutoField(primary_key=True)
-    item = models.ForeignKey(items, on_delete=models.CASCADE, null= True, blank= True)
     store = models.ForeignKey(store, on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=[
-        ('pending','Pending'),
-        ('approved','Approved'),
-        ('rejected', 'Rejected')
-    ], default = 'pending')
-    quantity= models.PositiveIntegerField()
     remarks= models.TextField(max_length=255, null= True, blank =True)
     created_at = models.DateTimeField(default=timezone.now, blank = True, null= True)
+    status = models.CharField(max_length=50, choices=[('pending','Pending'), ('processed','Processed'), ('received','Received')],default='pending')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, null=True, blank=True)
     
     class Meta:
         db_table = 'request_note'
         verbose_name_plural = 'request_note'
-    
-    def __str__(self):
-        return f"Request Note of {self.item.item_name}"    
+       
  
+class request_note_detail(models.Model):
+    id = models.AutoField(primary_key=True)
+    item = models.ForeignKey(items, on_delete=models.CASCADE, null= True, blank= True)
+    quantity= models.PositiveIntegerField()
+    request_note= models.ForeignKey(request_note, models.CASCADE) 
+    
+    class Meta:
+        db_table = 'request_note_detail'
+        verbose_name_plural = 'request_note_detail'
+  
 class transfer_note(models.Model):
     id = models.AutoField(primary_key=True)
     request_note = models.ForeignKey(request_note, on_delete=models.CASCADE, null= True, blank= True)  
-    item = models.ForeignKey(items, on_delete= models.CASCADE)
-    warehouse_id = models.ForeignKey(warehouses, on_delete=models.CASCADE) 
-    quantity_transferred = models.PositiveIntegerField()
+    warehouse = models.ForeignKey(warehouses, on_delete=models.CASCADE, null = True, blank=True) 
     status = models.CharField(max_length=20, choices=[
         ('dispatched',' Dispatched'),
         ('intransit','Intransit'),
         ('delivered', 'Delivered')
     ], default='dispatched')
-    transferred_by = models.ForeignKey(User,on_delete=models.DO_NOTHING, null= True, blank= True) 
+    transferred_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, null= True, blank= True) 
     remarks = models.TextField(max_length=255, null= True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    store = models.ForeignKey(store, models.DO_NOTHING, null = True, blank = True)
+    class Meta:
+        db_table = 'transfer_note'
+        verbose_name_plural = 'transfer_note'   
+
+class transfer_note_detail(models.Model):
+    id = models.AutoField(primary_key= True)
+    item = models.ForeignKey('items',models.CASCADE)
+    transfer_note = models.ForeignKey('transfer_note', models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    
+    class Meta:
+        db_table = 'transfer_note_detail'
+        verbose_name_plural = 'transfer_note_detail'   
+        
+class receive_note(models.Model):
+    id = models.AutoField(primary_key=True)
+    transfer_note = models.ForeignKey(transfer_note, on_delete=models.CASCADE, null=True, blank= True)
+    store = models.ForeignKey(store, on_delete=models.CASCADE)
+    received_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null= True, blank=True)    
+    received_at=models.DateTimeField(default=timezone.now)
+    status = models.CharField(max_length=50, choices=[('pending','Pending'), ('processed','Processed'), ('received','Received')],default='pending')
+    warehouse = models.ForeignKey('warehouses', on_delete = models.DO_NOTHING, null = True, blank = True)
     created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
-        db_table = 'transfer_note'
-        verbose_name_plural = 'transfer_note'
-        
-    def __str__(self):
-         return f"Transfer Note of {self.item.item_name}"   
-    
-class receive_note(models.Model):
+        db_table = 'receive_note'
+        verbose_name_plural= 'receive_note'    
+
+class receive_note_detail(models.Model):
     id = models.AutoField(primary_key=True)
-    transfer_note_id = models.ForeignKey(transfer_note, on_delete=models.CASCADE, null=True, blank= True)
-    item = models.ForeignKey(items, on_delete=models.CASCADE)
-    store_id = models.ForeignKey(store, on_delete=models.CASCADE)
-    quantity_received = models.PositiveIntegerField()
-    received_by = models.ForeignKey(User, on_delete=models.CASCADE, null= True, blank=True)    
-    received_at=models.DateTimeField(default=timezone.now)
+    item = models.ForeignKey('items' , on_delete=models.CASCADE)    
+    receive_note = models.ForeignKey('receive_note', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
     
     class Meta:
-        db_table = 'receive_note'
-        verbose_name_plural= 'receive_note'
-        
-    def __str__(self):
-        return f"Receive Note of {self.item.item_name}"    
-    
-    
-        
+        db_table = 'receive_note_detail'
+        verbose_name_plural = 'receive_note_detail'           
