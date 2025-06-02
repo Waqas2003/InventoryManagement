@@ -43,7 +43,7 @@ class customers(models.Model):
     billing_address = models.TextField(blank=True, null=True)
     shipping_address = models.TextField(blank=True, null=True)
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    total_bill = models.DecimalField(max_digits=10, decimal_places=2, blank=True, default=0)
+    total_bill = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null= True,  default=0)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     customer_type = models.CharField(max_length=7, choices=customer_types, default='regular')
     
@@ -372,16 +372,6 @@ class stock_items(models.Model):
     def __str__(self):
         return f" {self.item} in {self.store.store_location}"
     
-class stockmanagement(models.Model):
-    id = models.AutoField(primary_key=True)
-    stock_code = models.CharField(max_length=255)
-    warehouse = models.ForeignKey('warehouses', models.DO_NOTHING, blank=True, null=True)
-    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-
-    class Meta:
-        db_table = 'stockmanagement'
-        verbose_name_plural = "stockmanagement"
-
 class tax_configurations(models.Model):
     tax_applies_to_choices = [
         ('Sales', 'sales'),

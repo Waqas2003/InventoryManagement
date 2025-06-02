@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import store, warehouse_stock, request_note, receive_note, transfer_note, categories, notification, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, stockmanagement, tax_configurations,  vendors, warehouses
+from .models import store, warehouse_stock, request_note, receive_note, transfer_note, categories, notification, sales_order_return,sales_order_return_detail, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
 admin.site.register(categories)
 admin.site.register(customers)
 admin.site.register(discounts)
@@ -15,7 +15,6 @@ admin.site.register(sales_order_discounts)
 admin.site.register(sales_order_return)
 admin.site.register(sales_order_tax)
 admin.site.register(shipments)
-admin.site.register(stockmanagement)
 admin.site.register(tax_configurations)
 admin.site.register(vendors)
 admin.site.register(warehouses)
