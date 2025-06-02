@@ -475,6 +475,7 @@ class notification(models.Model):
     message = models.TextField(null=True,blank=2)
     item = models.ForeignKey('Items',on_delete=models.CASCADE, null = True, blank=True)
     warehouse = models.ForeignKey('warehouses', on_delete=models.CASCADE, null = True, blank=True)
+    store = models.ForeignKey('store', on_delete=models.DO_NOTHING, null =True, blank = True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)        
 
@@ -534,7 +535,7 @@ class transfer_note(models.Model):
     transferred_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, null= True, blank= True) 
     remarks = models.TextField(max_length=255, null= True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
-    store = models.ForeignKey(store, models.DO_NOTHING, null = True, blank = True)
+    
     class Meta:
         db_table = 'transfer_note'
         verbose_name_plural = 'transfer_note'   
