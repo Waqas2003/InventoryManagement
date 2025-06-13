@@ -1,6 +1,6 @@
 from rest_framework import viewsets,mixins,status
-from .models import categories, warehouse_stock, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
-from .serializers import SalesReportSerializer, receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .models import categories,vendor_bill, warehouse_stock, vendor_transfer_note, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
+from .serializers import SalesReportSerializer,vendor_transfer_note_detail, vendor_bill_Serializer,vendor_transfer_note_detail_Serializer,vendor_transfer_note_Serializer , receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -16,152 +16,214 @@ from datetime import datetime, timedelta
 from asgiref.sync import async_to_sync
 from django.shortcuts import render, get_object_or_404
 from channels.layers import get_channel_layer
-from django.http import JsonResponse, HttpResponseBadRequest
-import json
 from decimal import Decimal
 from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.views import View
 from django.db import transaction
 import time
-from django.db.models import Sum, Count, F, Q, Case, When, IntegerField
-from django.utils.dateparse import parse_date
+from django.db.models import Sum, Count, F
 
 
+class vendor_bill_ViewSet(viewsets.ModelViewSet):
+    queryset = vendor_bill.objects.all()
+    serializer_class = vendor_bill_Serializer
+    permission_classes = [IsAuthenticated]
+    
+class vendor_transfer_note_detail_ViewSet(viewsets.ModelViewSet):
+    queryset = vendor_transfer_note_detail.objects.all()
+    serializer_class = vendor_transfer_note_detail_Serializer  
+    permission_classes = [IsAuthenticated]
+    
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from decimal import Decimal
+from django.utils import timezone
+
+class vendor_transfer_note_ViewSet(viewsets.ModelViewSet):
+    queryset = vendor_transfer_note.objects.all()
+    serializer_class = vendor_transfer_note_Serializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        try:
+            result = create_vendor_transfer_note_api(request.data, request.user)
+            return Response(result, status=status.HTTP_201_CREATED)
+        except ValueError as e:
+            return Response({'errors': e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+def create_vendor_transfer_note_api(request_data, user):
+    with transaction.atomic():
+        try:
+            # 1. Validate Required Fields
+            required_fields = {
+                'vendor_transfer_note_no': "Transfer note number is required",
+                'purchase_order': "Purchase order is required",
+                'vendor': "Vendor is required",
+                'items': "At least one item is required"
+            }
+            
+            errors = {}
+            for field, error_msg in required_fields.items():
+                if field not in request_data or not request_data[field]:
+                    errors[field] = [error_msg]
+            
+            if errors:
+                raise ValueError(errors)
+            
+            if not isinstance(request_data['items'], list) or len(request_data['items']) == 0:
+                raise ValueError({"items": ["At least one item must be provided"]})
+
+            # 2. Get Related Objects
+            try:
+                purchase_order = purchase_orders.objects.select_related('warehouse').get(id=request_data['purchase_order'])
+                if not purchase_order.warehouse:
+                    raise ValueError({"purchase_order": ["Purchase order has no warehouse assigned"]})
+                warehouse = purchase_order.warehouse
+            except purchase_orders.DoesNotExist:
+                raise ValueError({"purchase_order": ["Invalid purchase order ID"]})
+
+            try:
+                vendor = vendors.objects.get(id=request_data['vendor'])
+            except vendors.DoesNotExist:
+                raise ValueError({"vendor": ["Invalid vendor ID"]})
+
+            # 3. Create Transfer Note with warehouse from PO
+            transfer_note = vendor_transfer_note.objects.create(
+                vendor_transfer_note_no=request_data['vendor_transfer_note_no'],
+                purchase_order=purchase_order,
+                warehouse=warehouse,  # This is now guaranteed to exist
+                status=request_data.get('status', 'dispatched'),
+                remarks=request_data.get('remarks', ''),
+                vendor=vendor,
+                # created_by=user
+            )
+
+            # 4. Process Items and Calculate Total
+            total_amount = Decimal('0')
+            for item_data in request_data['items']:
+                try:
+                    item = items.objects.get(id=item_data['item_id'])
+                except items.DoesNotExist:
+                    raise ValueError({"items": [f"Item {item_data.get('item_id')} does not exist"]})
+
+                try:
+                    quantity = int(item_data['quantity'])
+                    price_per_piece = Decimal(str(item_data['price_per_piece']))
+                except (KeyError, ValueError) as e:
+                    raise ValueError({"items": ["Each item must have valid quantity and price_per_piece"]})
+
+                # Create Transfer Note Detail
+                vendor_transfer_note_detail.objects.create(
+                    vendor_transfer_note=transfer_note,
+                    item=item,
+                    price_per_piece=price_per_piece,
+                    quantity=quantity,
+                    # created_at=timezone.now()
+                )
+                total_amount += price_per_piece * quantity
+
+            # 5. Automatically Generate Vendor Bill
+            # tax_amount = total_amount * Decimal('0.05')  # 5% tax
+            bill = vendor_bill.objects.create(
+                bill_number=f"BILL-{transfer_note.id}-{timezone.now().strftime('%Y%m%d')}",
+                vendor_transfer_note=transfer_note,
+                # vendor=vendor,
+                # total_amount=total_amount,
+                # tax_amount=tax_amount,
+                # discount=Decimal('0.00'),
+                net_amount=total_amount ,
+                due_date=timezone.now() + timezone.timedelta(days=30),
+                status='pending',
+                created_at=timezone.now(),
+                # created_by=user
+            )
+
+            return {
+                'status': 'success',
+                'message': 'Transfer Note Created Successfully',
+                # 'transfer_note': {
+                #     'id': transfer_note.id,
+                #     'note_number': transfer_note.vendor_transfer_note_no,
+                #     'warehouse_id': warehouse.id,
+                #     'warehouse_name': warehouse.warehouse_name,
+                #     'purchase_order': purchase_order.purchase_order_number
+                # },
+                # 'bill': {
+                #     'id': bill.id,
+                #     'bill_number': bill.bill_number,
+                #     'net_amount': float(bill.net_amount)
+                # },
+                # 'items_processed': len(request_data['items'])
+            }
+
+        except ValueError as ve:
+            if isinstance(ve.args[0], dict):
+                raise ValueError(ve.args[0])
+            raise ValueError({"error": [str(ve)]})
+        except Exception as e:
+            raise ValueError({"error": [f"An unexpected error occurred: {str(e)}"]})
+                                
 class purchaseordersViewSet(viewsets.ModelViewSet):
     queryset = purchase_orders.objects.all()
     serializer_class = purchase_orders_Serializer
     permission_classes = [IsAuthenticated]
-    
-    @transaction.atomic
-    def create(self, request):
-        serializer = purchase_orders_Serializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                data = serializer.validated_data
-                vendor_id = data.get('vendor_id')
-                order_details = data.get('order_details')
 
-                # Validate vendor
-                vendor = vendors.objects.get(id=vendor_id)
+    def create(self, request, *args, **kwargs):
+        user = request.user
 
-                # Initialize order totals
-                total_amount = Decimal('0')
-                total_discount = Decimal('0')
-                total_tax = Decimal('0')
-                net_total = Decimal('0')
+        # Check if user is linked to a warehouse
+        if not user.warehouse:
+            return Response({"error": "User is not assigned to any warehouse."}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Create purchase order with initial values
-                purchase_order = purchase_orders(
-                    purchase_order_number=f"PO{vendor_id}{int(time.time())}",
-                    vendor=vendor,
-                    order_status='Pending',
-                    total_amount=0,  
-                    discount=0,      
-                    tax_amount=0,    
-                    net_total=0,     
+        vendor_id = request.data.get("vendor_id")
+        remarks = request.data.get("remarks")
+        order_details = request.data.get("order_details")
+        
+
+        if not order_details:
+            return Response({"error": "Order details are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Create Purchase Order
+            po = purchase_orders.objects.create(
+                purchase_order_number=f"PO-{timezone.now().strftime('%Y%m%d%H%M%S')}",  # Auto-generate
+                vendor_id=vendor_id,
+                warehouse=user.warehouse,
+                created_by=user,
+                status='pending',
+                created_at = timezone.now(),
+                remarks =remarks
+            )
+
+            # Add each item detail
+            for detail in order_details:
+                item_id = detail.get("item_id")
+                quantity = detail.get("quantity")
+                
+                if not item_id or not quantity:
+                    continue  
+
+                purchase_order_detail.objects.create(
+                    purchase_order=po,
+                    item_id=item_id,
+                    quantity=quantity,
                     created_at=timezone.now()
                 )
-                purchase_order.save()
 
-                # Process each item in the order
-                for item_detail in order_details:
-                    item_id = item_detail.get('item_id')
-                    item_name = item_detail.get('item_name', f"Item-{item_id}")
-                    quantity = int(item_detail.get('quantity'))
-                    price_per_piece = Decimal(str(item_detail.get('price_per_piece')))
-                    discount_percentage = Decimal(str(item_detail.get('discount_percentage', 0)))
-                    tax_percentage = Decimal(str(item_detail.get('tax_percentage', 0)))
-                    category_name = item_detail.get('category_name', 'Uncategorized')
+            serializer = self.get_serializer(po)
+            # return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-                    # Get or create item
-                    item, item_created = items.objects.get_or_create(
-                        id=item_id,
-                        defaults={
-                            'item_name': item_name,
-                            'item_code': f"ITEM-{item_id}",
-                            'sku': f"SKU-{item_id}",
-                            'item_price': price_per_piece,
-                            'item_type': 'Good',
-                            'created_at': timezone.now()
-                        }
-                    )
-
-                    # Get or create category
-                    category, _ = categories.objects.get_or_create(
-                        category_name=category_name,
-                        defaults={
-                            'category_desc': f"Auto-created for {item_name}",
-                            'created_at': timezone.now()
-                        }
-                    )
-
-                    # Assign category if new item
-                    if item_created:
-                        item.category = category
-                        item.save()
-
-                    # Calculate financials
-                    item_total = price_per_piece * quantity
-                    discount_amount = item_total * (discount_percentage / Decimal('100'))
-                    discounted_price = item_total - discount_amount
-                    tax_amount = discounted_price * (tax_percentage / Decimal('100'))
-                    sub_total = discounted_price + tax_amount
-
-                    # Update order totals
-                    total_amount += item_total
-                    total_discount += discount_amount
-                    total_tax += tax_amount
-                    net_total += sub_total
-
-                    # Create purchase order detail
-                    purchase_order_detail.objects.create(
-                        item=item,
-                        # category=category,
-                        purchase_order=purchase_order,
-                        quantity=quantity,
-                        price_per_piece=price_per_piece,
-                        discounted_price=discounted_price/quantity, 
-                        price_after_discount=discounted_price,
-                        tax_price=tax_amount,
-                        price_after_tax=sub_total,
-                        sub_total=sub_total
-                    )
-
-                    # Update or create stock
-                    if item.item_type == 'Good':
-                        stock_item, created = stock_items.objects.get_or_create(
-                            item=item,
-                            defaults={
-                                'quantity': quantity,
-                                'safety_stock_level': 10,
-                                'last_restocked_at': timezone.now()
-                            }
-                        )
-                        if not created:
-                            stock_item.quantity += quantity
-                            stock_item.last_restocked_at = timezone.now()
-                            stock_item.save()
-
-                # Update purchase order with final totals
-                purchase_order.total_amount = total_amount
-                purchase_order.discount = total_discount
-                purchase_order.tax_amount = total_tax
-                purchase_order.net_total = net_total
-                purchase_order.save()
-
-                return Response({
-                    'message': 'Purchase order created successfully',
-                    'order_id': purchase_order.id,
-                    'purchase_order_number': purchase_order.purchase_order_number,
-                    'total_amount': str(total_amount),
-                    'net_total': str(net_total)
+            return Response({
+                    'status' : 'success',
+                    'message': 'Order placed successfully',
+                    
                 }, status=status.HTTP_201_CREATED)
-
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+            
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def process_return(request_data, user):
     with transaction.atomic():
@@ -284,8 +346,6 @@ def process_return(request_data, user):
         except Exception as e:
             raise ValueError(f"Return processing failed: {str(e)}")
 
-                        
-        
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
@@ -366,7 +426,11 @@ class CustomUpdateMixin(mixins.UpdateModelMixin):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
+class purchase_order_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
+    queryset = purchase_order_detail.objects.all()
+    serializer_class = purchase_order_detail_Serializer
+    permission_classes = [IsAuthenticated]
+    
 class notification_ViewSet(CustomUpdateMixin,CustomCreateMixin,CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = notification.objects.all()
     serializer_class = notification_Serializer
@@ -755,75 +819,6 @@ class receive_note_ViewSet(CustomCreateMixin, CustomUpdateMixin, CustomDestroyMi
     queryset =  receive_note.objects.all()
     serializer_class = receive_note_Serializer
     permission_classes = [IsAuthenticated]           
-
-    # @transaction.atomic
-    # def create(self, request):
-    #     serializer = receive_note_Serializer(data=request.data)
-    #     if serializer.is_valid():
-    #         try:
-    #             data = serializer.validated_data
-    #             store_id = data.get('store').id
-    #             received_by = request.user
-    #             status_value = data.get('status', 'received')
-    #             warehouse = data.get('warehouse')
-
-    #             # Create receive_note
-    #             receive_note_obj = receive_note.objects.create(
-    #                 transfer_note=data.get('transfer_note', None),
-    #                 store_id=store_id,
-    #                 received_by=received_by,
-    #                 status=status_value,
-    #                 warehouse=transfer_note.warehouse,
-    #                 created_at=timezone.now()
-    #             )
-
-    #             # Fetch details from request.data because it's nested
-    #             receive_note_details = request.data.get('receive_note_details', [])
-
-    #             for detail in receive_note_details:
-    #                 item_id = detail.get('item_id')
-    #                 quantity = int(detail.get('quantity'))
-
-    #                 # Ensure item exists
-    #                 item = items.objects.get(id=item_id)
-
-    #                 # Create receive_note_detail
-    #                 receive_note_detail.objects.create(
-    #                     receive_note=receive_note_obj,
-    #                     item=item,
-    #                     quantity=quantity
-    #                 )
-
-    #                 # Update stock_items
-    #                 stock_item, created = stock_items.objects.get_or_create(
-    #                     item=item,
-    #                     store_id=store_id,
-    #                     defaults={
-    #                         'quantity': quantity,
-    #                         'safety_stock_level': 10,
-    #                         'last_restocked_at': timezone.now(),
-    #                         'created_at': timezone.now()
-    #                     }
-    #                 )
-
-    #                 if not created:
-    #                     stock_item.quantity += quantity
-    #                     stock_item.last_restocked_at = timezone.now()
-    #                     stock_item.save()
-
-    #             return Response({
-    #                 'message': 'Receive Note created successfully',
-    #                 'receive_note_id': receive_note_obj.id,
-    #                 'store': store_id,
-    #                 'total_items_received': len(receive_note_details),
-    #                 'status': receive_note_obj.status
-    #             }, status=status.HTTP_201_CREATED)
-
-    #         except Exception as e:
-    #             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
     
     def _check_complete_transfer(self, transfer_note_obj):
         """Check if all items in transfer note have been fully received"""
@@ -944,12 +939,12 @@ class receive_note_ViewSet(CustomCreateMixin, CustomUpdateMixin, CustomDestroyMi
 class receive_note_detail_ViewSet( CustomCreateMixin, CustomUpdateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset = receive_note_detail.objects.all()
     serializer_class = receive_note_detail_Serializer
-    permission_classes = IsAuthenticated
+    permission_classes = [IsAuthenticated]
 
 class warehouse_stock_ViewSet(CustomCreateMixin,CustomUpdateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset = warehouse_stock.objects.all()
     serializer_class = warehouse_stock_Serializer
-    permission_classes = IsAuthenticated
+    permission_classes = [IsAuthenticated]
 
 class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin,viewsets.ModelViewSet):
     queryset = inventory_adjustments.objects.all()
@@ -1164,11 +1159,6 @@ class purchase_order_return_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,
     serializer_class = purchase_order_return_detail_Serializer
     permission_classes = [IsAuthenticated]
 
-    
-class purchase_order_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
-    queryset = purchase_order_detail.objects.all()
-    serializer_class = purchase_order_detail_Serializer
-    permission_classes = [IsAuthenticated]
 
 
 class purchase_receipts_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
@@ -1453,1438 +1443,3 @@ class PurchaseReportAPIView(APIView):
             #                      (purchase_data.get("total_orders", 1) or 1)
         }, status=status.HTTP_200_OK)
 
-
-# def dashboard(request):
-#     # Get counts and totals for dashboard cards
-#     total_items = items.objects.count()
-#     total_sales = sales_orders.objects.aggregate(
-#         total=Sum('net_total')
-#     )['total'] or 0
-#     low_stock_items = stock_items.objects.filter(
-#         quantity__lte=models.F('safety_stock_level')
-#     ).count()
-#     pending_orders = sales_orders.objects.filter(
-#         order_status='Pending'
-#     ).count()
-
-#     # Get recent sales orders
-#     recent_sales = sales_orders.objects.order_by('-created_at')[:5]
-
-#     # Get low stock items
-#     low_stock_list = stock_items.objects.filter(
-#         quantity__lte=models.F('safety_stock_level')
-#     ).select_related('item')[:5]
-
-#     context = {
-#         'total_items': total_items,
-#         'total_sales': total_sales,
-#         'low_stock_items': low_stock_items,
-#         'pending_orders': pending_orders,
-#         'recent_sales': recent_sales,
-#         'low_stock_list': low_stock_list,
-#     }
-#     return render(request, 'dashboard.html', context)    
-
-
-#---------------------------------------------- For POS UI ---------------------------------------------------------------------------------------#
-
-# from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-# from django.urls import reverse_lazy
-
-# #Items Crud Views
-# class ItemListView(ListView):
-#     model = items
-#     template_name = 'items/item_list.html'
-#     context_object_name = 'items'
-
-# class ItemCreateView(CreateView):
-#     model = items
-#     fields = '__all__'
-#     template_name = 'items/item_form.html'
-#     success_url = reverse_lazy('item_list')
-
-# class ItemUpdateView(UpdateView):
-#     model = items
-#     fields = '__all__'
-#     template_name = 'items/item_form.html'
-#     success_url = reverse_lazy('item_list')
-
-# class ItemDeleteView(DeleteView):
-#     model = items
-#     template_name = 'items/item_confirm_delete.html'
-#     success_url = reverse_lazy('item_list')
-    
-# #Categories Crud Views    
-# class CategoriesListView(ListView):
-#     model= categories
-#     template_name =  'categories/categories_list.html'
-#     context_object_name = 'categories'
-
-# class CategoriesUpdateView(UpdateView):
-#     model = categories
-#     fields = '__all__'
-#     template_name = "categories/categories_form.html"
-#     success_url = reverse_lazy('categories_list')
-    
-# class CategoriesDeleteView(DeleteView):
-#     model = categories
-#     template_name = "categories/categories_delete.html"
-#     success_url = reverse_lazy('categories_list')
-        
-# class CategoriesCreateView(CreateView):
-#     model = categories
-#     fields = '__all__'
-#     template_name = 'categories/categories_form.html'
-#     success_url = reverse_lazy('categories_list')    
-    
-    
-# # Customers Crud Views   
-# class customersListView(ListView):
-#     model = customers
-#     template_name = "customers/customers_list.html"
-#     context_object_name = 'customers'
-    
-# class customersCreateView(CreateView):
-#     model = customers
-#     template_name = "customers/customers_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('customers_list')
-    
-# class customersDeleteView(DeleteView):
-#     model = customers
-#     template_name = "customers/customers_delete.html"
-#     success_url = reverse_lazy('customers_list')
-    
-# class customersUpdateView(UpdateView):
-#     model = customers
-#     template_name = "customers/customers_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('customers_list')
-       
-    
-# # Discount Crud Views   
-# class discountsListView(ListView):
-#     model = discounts
-#     template_name = "discounts/discounts_list.html"
-#     context_object_name = 'discounts'
-    
-# class discountsCreateView(CreateView):
-#     model = discounts
-#     template_name = "discounts/discounts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('discounts_list')
-    
-# class discountsDeleteView(DeleteView):
-#     model = discounts
-#     template_name = "discounts/discounts_delete.html"
-#     success_url = reverse_lazy('discounts_list')
-    
-# class discountsUpdateView(UpdateView):
-#     model = discounts
-#     template_name = "discounts/discounts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('discounts_list')
-     
-# #inventory_adjustments Crud Views
-# class inventory_adjustmentsListView(ListView):
-#     model = inventory_adjustments
-#     template_name = "inventory_adjustments/inventory_adjustments_list.html"
-#     context_object_name = 'inventory_adjustments'
-    
-    
-# class inventory_adjustmentsDeleteView(DeleteView):
-#     model = inventory_adjustments
-#     template_name = "inventory_adjustments/inventory_adjustments_delete.html"
-#     success_url = reverse_lazy('inventory_adjustments_list')
-    
-# class inventory_adjustmentsUpdateView(UpdateView):
-#     model = inventory_adjustments
-#     template_name = "inventory_adjustments/inventory_adjustments_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('inventory_adjustments_list')
-    
-    
-# # Purchase_Orders Crud Views    
-# class purchase_ordersListView(ListView):
-#     model = purchase_orders
-#     template_name = "purchase_orders/purchase_orders_list.html"
-#     context_object_name = 'purchase_orders'
-    
-# class purchase_ordersCreateView(CreateView):
-#     model = purchase_orders
-#     template_name = "purchase_orders/purchase_orders_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_orders_list')
-    
-# class purchase_ordersDeleteView(DeleteView):
-#     model = purchase_orders
-#     template_name = "purchase_orders/purchase_orders_delete.html"
-#     success_url = reverse_lazy('purchase_orders_list')
-    
-# class purchase_ordersUpdateView(UpdateView):
-#     model = purchase_orders
-#     template_name = "purchase_orders/purchase_orders_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_orders_list')
-  
-  
-# # Purchase Order Detail  Crud Views    
-# class purchase_order_detailListView(ListView):
-#     model = purchase_order_detail
-#     template_name = "purchase_order_detail/purchase_order_detail_list.html"
-#     context_object_name = 'purchase_order_detail'
-    
-# class purchase_order_detailCreateView(CreateView):
-#     model = purchase_order_detail
-#     template_name = "purchase_order_detail/purchase_order_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_order_detail_list')
-    
-# class purchase_order_detailDeleteView(DeleteView):
-#     model = purchase_order_detail
-#     template_name = "purchase_order_detail/purchase_order_detail_delete.html"
-#     success_url = reverse_lazy('purchase_orders_detail_list')
-    
-# class purchase_order_detailUpdateView(UpdateView):
-#     model = purchase_order_detail
-#     template_name = "purchase_order_detail/purchase_order_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_order_detail_list')
-  
-# # Purchase Order Return Crud Views
-# class purchase_order_returnListView(ListView):
-#     model = purchase_order_return
-#     template_name = "purchase_order_return/purchase_order_return_list.html"
-#     context_object_name = 'purchase_order_return'
-    
-# class purchase_order_returnCreateView(CreateView):
-#     model = purchase_order_return
-#     template_name = "purchase_order_return/purchase_order_return_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_order_return_list')
-        
-# class purchase_order_returnDeleteView(DeleteView):
-#     model = purchase_order_return
-#     template_name = "purchase_order_return/purchase_order_return_delete.html"
-#     success_url = reverse_lazy('purchase_order_return_list')
-    
-# class purchase_order_returnUpdateView(UpdateView):
-#     model = purchase_order_return
-#     template_name = "purchase_order_return/purchase_order_return_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('purchase_order_return_list')
-
-# #Purchase Order Return Detail Crud Views
-# class purchase_order_return_detailListView(ListView):
-#     model = purchase_order_return_detail
-#     template_name = "purchase_order_return_detail/purchase_order_return_detail_list.html"
-#     context_object_name = 'purchase_order_return_detail'
-
-# class purchase_order_return_detailCreateView(CreateView):
-#     model = purchase_order_return_detail
-#     template_name = "purchase_order_return_detail/purchase_order_return_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("purchase_order_return_detail_list")
-    
-# class purchase_order_return_detailDeleteView(DeleteView):
-#     model = purchase_order_return_detail
-#     template_name = "purchase_order_return_detail/purchase_order_return_detail_delete.html"
-#     success_url = reverse_lazy("purchase_order_return_detail_list")
-    
-    
-# class purchase_order_return_detailUpdateView(UpdateView):
-#     model = purchase_order_return_detail
-#     template_name = "purchase_order_return_detail/purchase_order_return_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("purchase_order_return_detail_list")
-
-
-# # Purchase Receipt Crud View
-# class purchase_receiptsListView(ListView):
-#     model = purchase_receipts
-#     template_name = "purchase_receipts/purchase_receipts_list.html"
-#     context_object_name = 'purchase_receipts'
-    
-# class purchase_receiptsCreateView(CreateView):
-#     model = purchase_receipts
-#     template_name = "purchase_receipts/purchase_receipts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("purchase_receipts_list")
-    
-# class purchase_receiptsDeleteView(DeleteView):
-#     model = purchase_receipts
-#     template_name = "purchase_receipts/purchase_receipts_delete.html"
-#     success_url = reverse_lazy("purchase_receipts_list")
-    
-# class purchase_receiptsUpdateView(UpdateView):
-#     model = purchase_receipts
-#     template_name = "purchase_receipts/purchase_receipts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("purchase_receipts_list")
-    
-# # Sales Order Discount Crud Views
-# class sales_order_discountsListView(ListView):
-#     model = sales_order_discounts
-#     template_name = "sales_order_discounts/sales_order_discounts_list.html"
-#     context_object_name = 'sales_order_discounts'
-    
-# class sales_order_discountsCreateView(CreateView):
-#     model = sales_order_discounts
-#     template_name = "sales_order_discounts/sales_order_discounts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("sales_order_discounts_list")
-    
-    
-# class sales_order_discountsDeleteView(DeleteView):
-#     model = sales_order_discounts
-#     template_name = "sales_order_discounts/sales_order_discounts_delete.html"
-#     success_url = reverse_lazy("sales_order_discounts_list")
-    
-# class sales_order_discountsUpdateView(UpdateView):
-#     model = sales_order_discounts
-#     template_name = "sales_order_discounts/sales_order_discounts_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("sales_order_discounts_list")
-    
-# #Area Crud Views
-# class areaListView(ListView):
-#     model = area
-#     template_name = "area/area_list.html"
-#     context_object_name = 'area'
-    
-    
-# class areaCreateView(CreateView):
-#     model = area
-#     template_name = "area/area_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('area_list')
-    
-# class areaDeleteView(DeleteView):
-#     model = area
-#     template_name = "area/area_delete.html"
-#     success_url = reverse_lazy('area_list')
-
-# class areaUpdateView(UpdateView):
-#     model = area
-#     template_name = "area/area_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('area_list')
-    
-# # Sales Orders Crud Views
-# class sales_ordersListView(ListView):
-#     model = sales_orders
-#     template_name = "sales_order/sales_orders_list.html"
-#     context_object_name = "sales_orders"
-    
-# class sales_ordersCreateView(CreateView):
-#     model = sales_orders
-#     template_name = "sales_order/sales_orders_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_orders_list') 
-    
-# class sales_ordersDeleteView(DeleteView):
-#     model = sales_orders
-#     template_name = "sales_order/sales_order_delete.html"
-#     success_url = reverse_lazy('sales_orders_list')  
-    
-# class sales_ordersUpdateView(UpdateView):
-#     model = sales_orders
-#     template_name = "sales_order/sales_orders_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_orders_list')
-
-# def sales_order_detail_view(request, pk):
-#     order = get_object_or_404(sales_orders, pk=pk)
-#     details = sales_order_detail.objects.filter(sales_order=order)
-#     return render(request, "sales_order_detail/sales_order_details.html", {'order': order, 'details': details})
-    
-# #Sales Order Return Crud Views   
-# class sales_order_returnListView(ListView):
-#     model = sales_order_return
-#     template_name = "sales_order_return/sales_order_return_list.html"
-#     context_object_name = 'sales_order_return'
-    
-# class sales_order_returnCreateView(CreateView):
-#     model = sales_order_return
-#     template_name = "sales_order_return/sales_order_return_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_return_list')
-    
-# class sales_order_returnDeleteView(DeleteView):
-#     model = sales_order_return
-#     template_name = "sales_order_return/sales_order_return_delete.html"
-#     success_url = reverse_lazy('sales_order_return_list')
-    
-# class sales_order_returnUpdateView(UpdateView):
-#     model = sales_order_return
-#     template_name = "sales_order_return/sales_order_return_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_return_list')
-      
-# #Sales Order Return Detail Crud Views
-# class sales_order_return_detailListView(ListView):
-#     model = sales_order_return_detail
-#     template_name = "sales_order_return_detail/sales_order_return_detail_list.html"
-#     context_object_name = 'sales_order_return_detail'
-    
-# class sales_order_return_detailCreateView(CreateView):
-#     model = sales_order_return_detail
-#     template_name = "sales_order_return_detail/sales_order_return_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("sales_order_return_detail_list")
-
-# class sales_order_return_detailDeleteView(DeleteView):
-#     model = sales_order_return_detail
-#     template_name = "sales_order_return_detail/sales_order_return_detail_delete.html"
-#     success_url = reverse_lazy('sales_order_return_detail_list')
-    
-# class sales_order_return_detailUpdateView(UpdateView):
-#     model = sales_order_return_detail
-#     template_name = "sales_order_return_detail/sales_order_return_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_return_detail_list')
-    
-
-# # Sales Order Tax Crud Views
-# class sales_order_taxListView(ListView):
-#     model = sales_order_tax
-#     template_name = "sales_order_tax/sales_order_tax_list.html"
-#     context_object_name = 'sales_order_tax'
-    
-    
-# class sales_order_taxCreateView(CreateView):
-#     model = sales_order_tax
-#     template_name = "sales_order_tax/sales_order_tax_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_tax_list')
-    
-# class sales_order_taxDeleteView(DeleteView):
-#     model = sales_order_tax
-#     template_name = "sales_order_tax/sales_order_tax_delete.html"
-#     success_url = reverse_lazy('sales_order_tax_list')
-    
-# class sales_order_taxUpdateView(UpdateView):
-#     model = sales_order_tax
-#     template_name = "sales_order_tax/sales_order_tax_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_tax_list')    
-    
-    
-# #Shipment Crud Views
-# class shipmentsListView(ListView):
-#     model = shipments
-#     template_name = "shipments/shipments_list.html"
-#     context_object_name = 'shipments'
-    
-# class shipmentsCreateView(CreateView):
-#     model = shipments
-#     template_name = "shipments/shipments_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('shipments_list')
-
-# class shipmentsUpdateView(CreateView):
-#     model = shipments
-#     template_name = "shipments/shipments_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("shipments_list")
-    
-# class shipmentsDeleteView(DeleteView):
-#     model = shipments
-#     template_name = "shipments/shipments_delete.html"
-#     success_url = reverse_lazy('shipments_list')
-    
-# #Stock Items Crud Views
-# class stock_itemsListView(ListView):
-#     model = stock_items
-#     template_name = "stock_items/stock_items_list.html"
-#     context_object_name = 'stock_items'
-    
-# class stock_itemsCreateView(CreateView):
-#     model = stock_items
-#     template_name = "stock_items/stock_items_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('stock_items_list')
-    
-# class stock_itemsDeleteView(DeleteView):
-#     model = stock_items
-#     template_name = "stock_items/stock_items_delete.html"
-#     success_url = reverse_lazy('stock_items_list')
-    
-# class stock_itemsUpdateView(UpdateView):
-#     model = stock_items
-#     template_name = "stock_items/stock_items_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('stock_items_list')
-    
-# # Stock Management Crud Views
-# class stockmanagementListView(ListView):
-#     model = stockmanagement
-#     template_name = "stockmanagement/stockmanagement_list.html"
-#     context_object_name = 'stockmanagement'
-    
-# class stockmanagementCreateView(CreateView):
-#     model = stockmanagement
-#     template_name = "stockmanagement/stockmanagement_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy("stockmanagement_list")
-    
-# class stockmanagementDeleteView(DeleteView):
-#     model = stockmanagement
-#     template_name = "stockmanagement/stockmanagement_delete.html"
-#     success_url = reverse_lazy('stockmanagement_list')
-    
-# class stockmanagementUpdateView(UpdateView):
-#     model = stockmanagement
-#     template_name = "stockmanagement/stockmanagement_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('stockmanagement_list')
- 
- 
-# #Tax Configurations Crud Views    
-# class tax_configurationsListView(ListView):
-#     model = tax_configurations
-#     template_name = "tax_configurations/tax_configurations_list.html"
-#     context_object_name = 'tax_configurations'
-    
-# class tax_configurationsCreateView(CreateView):
-#     model = tax_configurations
-#     template_name = "tax_configurations/tax_configurations_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('tax_configurations_list')
-    
-# class tax_configurationsDeleteView(DeleteView):
-#     model = tax_configurations
-#     template_name = "tax_configurations/tax_configurations_delete.html"
-#     success_url = reverse_lazy('tax_configurations_list')
-    
-# class tax_configurationsUpdateView(UpdateView):
-#     model = tax_configurations
-#     template_name = "tax_configurations/tax_configurations_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('tax_configurations_list')
-    
-# #Vendors Crud Views
-# class vendorsListView(ListView):
-#     model = vendors
-#     template_name = "vendors/vendors_list.html"
-#     context_object_name = 'vendors'
-    
-# class vendorsCreateView(CreateView):
-#     model = vendors
-#     template_name = "vendors/vendors_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('vendors_list')
-
-
-# class vendorsUpdateView(UpdateView):
-#     model = vendors
-#     template_name = "vendors/vendors_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('vendors_list')
-    
-# class vendorsDeleteView(DeleteView):
-#     model = vendors
-#     template_name = "vendors/vendors_delete.html"
-#     success_url = reverse_lazy('vendors_list')
-    
-# # Warehouse Crud Views    
-# class warehousesListView(ListView):
-#     model = warehouses
-#     template_name = "warehouses/warehouses_list.html"
-#     context_object_name = 'warehouses'
-    
-# class warehousesCreateView(CreateView):
-#     model = warehouses
-#     template_name = "warehouses/warehouses_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('warehouses_list')
-    
-# class warehousesDeleteView(DeleteView):
-#     model = warehouses
-#     template_name = "warehouses/warehouses_delete.html"
-#     success_url = reverse_lazy('warehouses_list')
-    
-# class warehousesUpdateView(UpdateView):
-#     model = warehouses
-#     template_name = "warehouses/warehouses_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('warehouses_list')
-    
-# #Sales Order Detail Crud Views    
-# class sales_order_detailListView(ListView):
-#     model = sales_order_detail
-#     template_name = "sales_order_detail/sales_order_detail_list.html"
-#     context_object_name = 'sales_order_detail'
-    
-# class sales_order_detailCreateView(CreateView):
-#     model = sales_order_detail
-#     template_name = "sales_order_detail/sales_order_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_detail_list')
-    
-# class sales_order_detailUpdateView(UpdateView):
-#     model = sales_order_detail
-#     template_name = "sales_order_detail/sales_order_detail_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('sales_order_detail_list')
-    
-# class sales_order_detailDeleteView(DeleteView):
-#     model = sales_order_detail
-#     template_name = "sales_order_detail/sales_order_detail_delete.html"
-#     success_url = reverse_lazy('sales_order_detail_list')
-
-    
-# # Notification Crud Views
-# class notificationListView(ListView):
-#     model = notification
-#     template_name = "notification/notification_list.html"
-#     context_object_name = 'notification'
-    
-# class notificationCreateView(CreateView):
-#     model = notification
-#     template_name = "notification/notification_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('notification_list')
-    
-# class notificationUpdateView(UpdateView):
-#     model = notification
-#     template_name = "notification/notification_form.html"
-#     fields = '__all__'
-#     success_url = reverse_lazy('notification_list')
-    
-# class notificationDeleteView(DeleteView):
-#     model = notification
-#     template_name = "notification/notification_delete.html"
-#     success_url = reverse_lazy('notification_list')
-
-
-# @transaction.atomic
-# def place_order(request):
-#     if request.method == 'GET':
-#         # Prepare data for the form
-#         context = {
-#             'customers': customers.objects.all(),
-#             'areas': area.objects.all(),
-#             'items': items.objects.all(),
-#             'discounts': discounts.objects.filter(is_active=True),
-#             # 'tax':tax_configurations.objects.filter(is_active=True)
-#         }
-#         return render(request, 'orders/place_order.html', context)
-    
-#     elif request.method == 'POST':
-#         try:
-#             # Get data from form submission
-#             customer_id = request.POST.get('customer_id')
-#             area_id = request.POST.get('area_id')
-            
-#             # Parse order items from form
-#             order_details = []
-#             item_ids = request.POST.getlist('item_id')
-#             quantities = request.POST.getlist('quantity')
-#             discount_ids = request.POST.getlist('discount_id')
-            
-#             for i in range(len(item_ids)):
-#                 order_details.append({
-#                     'item_id': item_ids[i],
-#                     'quantity': quantities[i],
-#                     'discount_id': discount_ids[i] if i < len(discount_ids) else None
-#                 })
-
-#             # Validate customer
-#             customer = customers.objects.get(id=customer_id)
-
-#             # Validate area
-#             area_obj = area.objects.get(id=area_id)
-
-#             # Initialize order totals
-#             total_amount = 0
-#             total_discount = 0
-#             total_tax = 0
-#             net_total = 0
-
-#             # Create sales order
-#             sales_order = sales_orders(
-#                 sales_order_number=f"SO{customer_id}{int(time.time())}", 
-#                 customer=customer,
-#                 area=area_obj,
-#                 order_status='Delivered',
-#                 total_amount=0,  
-#                 discount=0,  
-#                 tax_amount=0,  
-#                 net_total=0, 
-#                 created_at=timezone.now()
-#             )
-#             sales_order.save()
-
-#             # Process each item in the order
-#             for item_detail in order_details:
-#                 item_id = item_detail.get('item_id')
-#                 quantity = int(item_detail.get('quantity'))
-#                 discount_id = item_detail.get('discount_id')
-
-#                 # Validate item
-#                 item = items.objects.get(id=item_id)
-
-#                 # Check stock
-#                 stock_item = item.stock_items.first()
-#                 if not stock_item:
-#                     raise ValidationError(f"Item {item.item_name} has no stock information")
-
-#                 stock_quantity = int(stock_item.quantity)
-#                 if stock_quantity < quantity:
-#                     raise ValidationError(f"Item {item.item_name} is out of stock")
-
-#                 # Calculate prices
-#                 price_per_piece = item.item_price
-#                 discounted_price = price_per_piece
-                
-#                 # Apply discount if available
-#                 if discount_id:
-#                     discount = discounts.objects.get(id=discount_id)
-#                     if discount and discount.is_active:
-#                         discounted_price = price_per_piece * (1 - discount.discount_percentage / 100)
-#                         total_discount += (price_per_piece - discounted_price) * quantity
-
-#                 # Calculate tax
-#                 tax_price = 0
-#                 if item.tax:
-#                     tax_price = discounted_price * (item.tax.rate_percentage / 100)
-#                     total_tax += tax_price * quantity
-
-#                 sub_total = (discounted_price + tax_price) * quantity
-#                 total_amount += price_per_piece * quantity
-#                 net_total += sub_total
-
-#                 # Create order detail
-#                 sales_order_detail.objects.create(
-#                     item=item,
-#                     sales_order=sales_order,
-#                     price_per_piece=price_per_piece,
-#                     quantity=quantity,
-#                     discounted_price=discounted_price,
-#                     price_after_discount=discounted_price,
-#                     tax_price=tax_price,
-#                     price_after_tax=discounted_price + tax_price,
-#                     sub_total=sub_total 
-#                 )
-
-#                 # Update stock
-#                 stock_item.quantity = stock_quantity - quantity
-#                 stock_item.save()
-#                 check_safety_stock(item)
-
-#             # Add delivery charges
-#             net_total += area_obj.delivery_charges
-
-#             # Update order totals
-#             sales_order.total_amount = total_amount
-#             sales_order.discount = total_discount
-#             sales_order.tax_amount = total_tax
-#             sales_order.net_total = net_total
-#             sales_order.save()
-
-#             # Update customer credit
-#             customer.total_bill = (customer.total_bill or Decimal('0')) + net_total
-#             if customer.credit_limit is not None and customer.total_bill > customer.credit_limit:
-#                 raise ValidationError("Order exceeds customer's credit limit")
-#             customer.save()
-#             messages.success(request, 'Order placed successfully!')
-#             context = {
-#                 'customers': customers.objects.all(),
-#                 'areas': area.objects.all(),
-#                 'items': items.objects.all(),
-#                 'discounts': discounts.objects.filter(is_active=True)
-#             }
-#             return render(request, 'orders/place_order.html', context)
-
-#         except Exception as e:
-#             messages.error(request, f'Error: {str(e)}')
-#             # Return form with previous data
-#             context = {
-#                 'customers': customers.objects.all(),
-#                 'areas': area.objects.all(),
-#                 'items': items.objects.all(),
-#                 'discounts': discounts.objects.filter(is_active=True),
-#                 'error': str(e),
-#                 'form_data': request.POST  
-#             }
-#             return render(request, 'orders/place_order.html', context)
-
-
-# def check_safety_stock(item):
-#         stock = stock_items.objects.get(item=item)
-#         if stock.quantity <= stock.safety_stock_level:
-#             # Check if notification already exists
-#             if not notification.objects.filter(item=item, is_read=False).exists():
-#                 notification.objects.create(
-#                     item=item,
-#                     message=f"Stock for '{item.item_name}' has fallen below the safety level.",
-#                     created_at=timezone.now(),
-#                     is_read=False
-#                 )
-#                 # Optional: Send to WebSocket
-#                 from asgiref.sync import async_to_sync
-#                 from channels.layers import get_channel_layer
-                
-#                 channel_layer = get_channel_layer()
-#                 async_to_sync(channel_layer.group_send)(
-#                     "notifications",  
-#                     {
-#                         "type": "send_notification",
-#                         "message": f"Restock '{item.item_name}'! Low stock alert."
-#                     }
-#                 )
-
-# class DashboardView(TemplateView):
-#     template_name = "dashboard.html"
-
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-        
-#         # Date ranges
-#         today = timezone.now().date()
-#         week_ago = today - timedelta(days=7)
-#         month_ago = today - timedelta(days=30)
-        
-#         # Inventory Metrics
-#         context['total_items'] = items.objects.count()
-#         context['out_of_stock'] = stock_items.objects.filter(quantity=0).count()
-        
-#         # Low stock items
-#         low_stock_items = stock_items.objects.filter(
-#             quantity__lte=F('safety_stock_level')
-#         ).select_related('item')
-#         context['low_stock_count'] = low_stock_items.count()
-#         context['low_stock_list'] = low_stock_items[:5]  
-        
-#         # Sales Metrics
-#         today_sales_data = get_daily_sales(today)
-#         context['todays_orders'] = today_sales_data['total_orders'] or 0
-#         context['todays_sales'] = today_sales_data['total_sales'] or 0
-        
-#         # Total Sales (all time)
-#         context['total_sales'] = sales_orders.objects.aggregate(
-#             total=Sum('net_total')
-#         )['total'] or 0
-        
-#         context['weekly_sales'] = sales_orders.objects.filter(
-#             created_at__date__gte=week_ago
-#         ).aggregate(total=Sum('net_total'))['total'] or 0
-        
-#         # Total orders (all time)
-#         context['total_orders'] = sales_orders.objects.count()
-        
-#         # Purchase Metrics
-#         context['pending_orders'] = purchase_orders.objects.filter(
-#             order_status='Pending'
-#         ).count()
-        
-#         # Financial Metrics
-#         context['accounts_receivable'] = customers.objects.aggregate(
-#             total=Sum('total_bill')
-#         )['total'] or 0
-        
-#         context['accounts_payable'] = vendors.objects.aggregate(
-#             total=Sum('total_payables')
-#         )['total'] or 0
-        
-#         # Recent Activity
-#         context['recent_orders'] = sales_orders.objects.select_related(
-#             'customer'
-#         ).order_by('-created_at')[:5]
-        
-#         # Daily sales data for the week (today first)
-#         daily_sales = []
-#         for i in range(7):
-#             date = today - timedelta(days=i)
-#             sales_data = get_daily_sales(date)
-#             daily_sales.append({
-#                 'date': date,
-#                 'orders': sales_data['total_orders'] or 0,
-#                 'sales': sales_data['total_sales'] or 0
-#             })
-        
-#         context['daily_sales'] = daily_sales  
-        
-#         return context    
-#     def get_sales_chart_data(self):
-#         """Generate data for sales performance chart"""
-#         date = timezone.now().date() - timedelta(days=30)
-#         sales_data = sales_orders.objects.filter(
-#             created_at__date__gte=date
-#         ).extra({
-#             'day': "date(created_at)"
-#         }).values('day').annotate(
-#             total=Sum('net_total')
-#         ).order_by('day')
-        
-#         return {
-#             'labels': [item['day'].strftime('%b %d') for item in sales_data],
-#             'data': [float(item['total'] or 0) for item in sales_data]
-#         }
-    
-#     def get_inventory_chart_data(self):
-#         """Generate data for inventory status chart"""
-#         categories = items.objects.values(
-#             'category__category_name'
-#         ).annotate(
-#             count=Count('id'),
-#             low_stock=Sum(Case(
-#                 When(stock_items__quantity__lte=F('stock_items__safety_stock_level'), then=1),
-#                 default=0,
-#                 output_field=IntegerField()
-#             ))
-#         )
-        
-#         return {
-#             'labels': [item['category__category_name'] or 'Uncategorized' for item in categories],
-#             'total': [item['count'] for item in categories],
-#             'low_stock': [item['low_stock'] for item in categories]
-#         }
-
-
-
-# class PurchaseOrderView(View):
-#     template_name = 'purchases/create_purchase_order.html'
-
-#     def get(self, request):
-#         context = {
-#             'vendors': vendors.objects.all(),
-#             'items': items.objects.all(),
-#             'categories': categories.objects.all(),
-#         }
-#         return render(request, self.template_name, context)
-
-#     @transaction.atomic
-#     def post(self, request):
-#         try:
-#             try:
-#                 data = json.loads(request.body.decode('utf-8'))
-#             except json.JSONDecodeError:
-#                 return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-
-#             vendor_id = data.get('vendor_id')
-#             order_details = data.get('order_details', [])
-
-#             if not vendor_id:
-#                 raise ValueError("Vendor ID is required")
-            
-#             if not order_details:
-#                 raise ValueError("At least one order item is required")
-
-
-#             vendor = vendors.objects.get(id=vendor_id)
-
-#             total_amount = Decimal('0')
-#             total_discount = Decimal('0')
-#             total_tax = Decimal('0')
-#             net_total = Decimal('0')
-
-#             # Create purchase order
-#             purchase_order = purchase_orders.objects.create(
-#                 purchase_order_number=f"PO{vendor_id}{int(time.time())}",
-#                 vendor=vendor,
-#                 order_status='Pending',
-#                 total_amount=0,
-#                 discount=0,
-#                 tax_amount=0,
-#                 net_total=0,
-#                 created_at=timezone.now()
-#             )
-
-#             for detail in order_details:
-#                 # Validate required fields
-#                 if not detail.get('item_id') or not detail.get('quantity') or not detail.get('price_per_piece'):
-#                     raise ValueError("Item ID, quantity, and price are required for all items")
-
-#                 item_id = detail.get('item_id')
-#                 item_name = detail.get('item_name', f"Item-{item_id}")
-#                 quantity = int(detail.get('quantity'))
-#                 price_per_piece = Decimal(str(detail.get('price_per_piece')))
-#                 discount_percentage = Decimal(str(detail.get('discount_percentage', 0)))
-#                 tax_percentage = Decimal(str(detail.get('tax_percentage', 0)))
-#                 category_name = detail.get('category_name', 'Uncategorized')
-
-#                 # Create or get item
-#                 item, item_created = items.objects.get_or_create(
-#                     id=item_id,
-#                     defaults={
-#                         'item_name': item_name,
-#                         'item_code': f"ITEM-{item_id}",
-#                         'sku': f"SKU-{item_id}",
-#                         'item_price': price_per_piece,
-#                         'item_type': 'Good',
-#                         'created_at': timezone.now()
-#                     }
-#                 )
-
-#                 # Create or get category
-#                 category, _ = categories.objects.get_or_create(
-#                     category_name=category_name,
-#                     defaults={
-#                         'category_desc': f"Auto-created for {item_name}",
-#                         'created_at': timezone.now()
-#                     }
-#                 )
-
-#                 if item_created:
-#                     item.category = category
-#                     item.save()
-
-#                 # Calculate amounts
-#                 item_total = price_per_piece * quantity
-#                 discount_amount = item_total * (discount_percentage / Decimal('100'))
-#                 discounted_price = item_total - discount_amount
-#                 tax_amount = discounted_price * (tax_percentage / Decimal('100'))
-#                 sub_total = discounted_price + tax_amount
-
-#                 total_amount += item_total
-#                 total_discount += discount_amount
-#                 total_tax += tax_amount
-#                 net_total += sub_total
-
-#                 # Create order detail
-#                 purchase_order_detail.objects.create(
-#                     item=item,
-#                     purchase_order=purchase_order,
-#                     quantity=quantity,
-#                     price_per_piece=price_per_piece,
-#                     discounted_price=discounted_price / quantity,
-#                     price_after_discount=discounted_price,
-#                     tax_price=tax_amount,
-#                     price_after_tax=sub_total,
-#                     sub_total=sub_total
-#                 )
-
-#                 # Update stock if it's a good item
-#                 if item.item_type == 'Good':
-#                     stock_item, created = stock_items.objects.get_or_create(
-#                         item=item,
-#                         defaults={
-#                             'quantity': quantity,
-#                             'safety_stock_level': 10,
-#                             'last_restocked_at': timezone.now()
-#                         }
-#                     )
-#                     if not created:
-#                         stock_item.quantity += quantity
-#                         stock_item.last_restocked_at = timezone.now()
-#                         stock_item.save()
-
-#             # Update purchase order totals
-#             purchase_order.total_amount = total_amount
-#             purchase_order.discount = total_discount
-#             purchase_order.tax_amount = total_tax
-#             purchase_order.net_total = net_total
-#             purchase_order.save()
-
-#             return JsonResponse({
-#                 'success': True,
-#                 'message': 'Purchase order created successfully',
-#                 'order_number': purchase_order.purchase_order_number
-#             })
-            
-#         except Exception as e:
-#             return JsonResponse({
-#                 'success': False,
-#                 'error': str(e)
-#             }, status=400)
-    
-
-
-# @transaction.atomic
-# def process_return(request):
-#     if request.method == 'GET':
-#         context = {
-#             'sales_orders': sales_orders.objects.all(),
-#             'users': User.objects.all(),
-#         }
-#         return render(request, 'orders/process_return.html', context)
-
-#     elif request.method == 'POST':
-#         try:
-#             # Step 1: Extract form data
-#             sales_order_id = request.POST.get('sales_order_id')
-#             return_reason = request.POST.get('return_reason')
-#             return_type = request.POST.get('return_type')
-#             created_by_id = request.POST.get('created_by')
-
-#             # Validate basic fields
-#             if not all([sales_order_id, return_reason, return_type, created_by_id]):
-#                 raise ValueError("All fields are required.")
-
-#             if return_type not in ['return', 'damage', 'loss']:
-#                 raise ValueError("Invalid return type selected.")
-
-#             # Fetch objects
-#             sales_order = sales_orders.objects.get(id=sales_order_id)
-#             created_by_user = User.objects.get(id=created_by_id)
-
-#             # Extract return details
-#             detail_ids = request.POST.getlist('sales_order_detail_id')
-#             return_quantities = request.POST.getlist('return_quantity')
-
-#             if not detail_ids or not return_quantities or len(detail_ids) != len(return_quantities):
-#                 raise ValueError("Invalid return details submitted.")
-
-#             # Step 2: Create return header
-#             return_header = sales_order_return.objects.create(
-#                 sales_order=sales_order,
-#                 customer=sales_order.customer,
-#                 total_refund_amount=0,
-#                 sales_order_detail=None,  
-#                 return_type=return_type,
-#                 return_reason=return_reason,
-#                 created_at=timezone.now(),
-#                 created_by=created_by_user
-#             )
-
-#             total_refund = Decimal('0')
-#             first_detail = None
-
-#             # Step 3: Process return details
-#             for i in range(len(detail_ids)):
-#                 detail_id = detail_ids[i]
-#                 return_qty = int(return_quantities[i])
-
-#                 item_detail = sales_order_detail.objects.get(
-#                     id=detail_id, sales_order=sales_order
-#                 )
-
-#                 if return_qty > item_detail.quantity:
-#                     raise ValueError(f"Return quantity for item {item_detail.item.item_name} exceeds ordered quantity.")
-
-#                 refund_amount = Decimal(item_detail.price_per_piece) * return_qty
-#                 total_refund += refund_amount
-
-#                 sales_order_return_detail.objects.create(
-#                     return_sale=return_header,
-#                     sales_order_detail=item_detail,
-#                     item=item_detail.item,
-#                     return_quantity=return_qty,
-#                     price_per_piece=item_detail.price_per_piece,
-#                     subtotal=refund_amount,
-#                     created_at=timezone.now()
-#                 )
-
-#                 # Update first_detail for header relation
-#                 if not first_detail:
-#                     first_detail = item_detail
-
-#                 # Restock if return type is "return"
-#                 if return_type == 'return':
-#                     stock_item = stock_items.objects.get(item=item_detail.item)
-#                     stock_item.quantity += return_qty
-#                     stock_item.save()
-
-#                 # Create inventory adjustment
-#                 inventory_adjustments.objects.create(
-#                     item=item_detail.item,
-#                     sales_order_return=return_header,
-#                     adjustment_type=return_type,
-#                     quantity=return_qty,
-#                     adjustment_reason=return_reason,
-#                     created_at=timezone.now(),
-#                     adjusted_by=created_by_user
-#                 )
-
-#             # Step 4: Update return header and customer bill
-#             return_header.sales_order_detail = first_detail
-#             return_header.total_refund_amount = total_refund
-#             return_header.save()
-
-#             if return_type == 'return':
-#                 customer = sales_order.customer
-#                 customer.total_bill = (customer.total_bill or Decimal('0')) - total_refund
-#                 customer.save()
-
-#             messages.success(request, "Return processed successfully!")
-#             return redirect('process_return')  
-#         except Exception as e:
-#             messages.error(request, f"Error: {str(e)}")
-#             context = {
-#                 'sales_orders': sales_orders.objects.all(),
-#                 'users': User.objects.all(),
-#                 'error': str(e),
-#                 'form_data': request.POST
-#             }
-#             return render(request, 'orders/process_return.html', context)
-    
-
-# @transaction.atomic
-# def purchase_order_return_view(request):
-#     if request.method == 'POST':
-#         try:
-#             adjustment_ids = request.POST.get('adjustment_ids', '')
-#             adjustment_ids = [int(i.strip()) for i in adjustment_ids.split(',') if i.strip().isdigit()]
-#             created_by = request.user
-
-#             valid_adjustments = inventory_adjustments.objects.filter(
-#                 id__in=adjustment_ids,
-#                 adjustment_type__in=['Unsold_items', 'Damage'],
-#                 is_processed=False
-#             )
-
-#             if valid_adjustments.count() != len(adjustment_ids):
-#                 invalid_ids = set(adjustment_ids) - set(valid_adjustments.values_list('id', flat=True))
-#                 messages.error(request, f"Invalid or already processed adjustments: {invalid_ids}")
-#                 return redirect('purchase_return')
-
-#             total_refund = Decimal('0')
-#             return_items = []
-#             vendor = None
-
-#             for adj in valid_adjustments:
-#                 po_detail = purchase_order_detail.objects.filter(
-#                     item=adj.item
-#                 ).order_by('-purchase_order__created_at').first()
-
-#                 if not po_detail:
-#                     messages.error(request, f"No purchase found for item ID: {adj.item.id}")
-#                     return redirect('purchase_return')
-
-#                 if not vendor:
-#                     vendor = po_detail.purchase_order.vendor
-#                 elif vendor != po_detail.purchase_order.vendor:
-#                     messages.error(request, "All items must belong to the same vendor.")
-#                     return redirect('purchase_return')
-
-#                 refund_amount = po_detail.price_per_piece * adj.quantity
-#                 total_refund += refund_amount
-
-#                 return_items.append({
-#                     'item': adj.item,
-#                     'quantity': adj.quantity,
-#                     'price': po_detail.price_per_piece,
-#                     'refund': refund_amount,
-#                     'purchase_order': po_detail.purchase_order,
-#                     'adjustment': adj
-#                 })
-
-#             if not return_items:
-#                 messages.error(request, "No valid items found for processing.")
-#                 return redirect('purchase_return')
-
-#             return_header = purchase_order_return.objects.create(
-#                 purchase_orders=return_items[0]['purchase_order'],
-#                 vendor=vendor,
-#                 total_refund_amount=total_refund,
-#                 created_at=timezone.now(),
-#                 created_by=created_by
-#             )
-
-#             for item in return_items:
-#                 purchase_order_return_detail.objects.create(
-#                     return_purchase=return_header,
-#                     purchase_order_detail=purchase_order_detail.objects.get(
-#                         item=item['item'],
-#                         purchase_order=item['purchase_order']
-#                     ),
-#                     return_quantity=item['quantity'],
-#                     price_per_piece=item['price'],
-#                     subtotal=item['refund'],
-#                     created_at=timezone.now()
-#                 )
-
-#                 item['adjustment'].is_processed = True
-#                 item['adjustment'].save()
-
-#             vendor.total_payables = (vendor.total_payables or Decimal('0')) - total_refund
-#             vendor.save()
-
-#             messages.success(request, f"Return processed successfully. Refund: {total_refund}, Vendor: {vendor.vendor_name}")
-#             return redirect('purchase_return')
-
-#         except Exception as e:
-#             messages.error(request, f"Error: {str(e)}")
-#             return redirect('purchase_return')
-
-#     return render(request, 'purchase_order_return/purchase_return.html')
-
-
-# @transaction.atomic
-# def create_inventory_adjustment(request):
-#     if request.method == 'POST':
-#         try:
-#             item_id = request.POST.get('item')
-#             quantity = int(request.POST.get('quantity', 0))
-#             adjustment_type = request.POST.get('adjustment_type')
-#             reason = request.POST.get('adjustment_reason', '')
-#             adjusted_by_id = request.POST.get('adjusted_by')
-
-#             # Get related objects
-#             item = items.objects.get(id=item_id)
-
-#             if adjustment_type not in ['Damage', 'Unsold_items']:
-#                 messages.error(request, 'Only Damage or Unsold_items adjustments are allowed.')
-#                 return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
-
-#             stock = stock_items.objects.get(item=item)
-#             if stock.quantity < quantity:
-#                 messages.error(request, f'Only {stock.quantity} items in stock. Cannot adjust {quantity}.')
-#                 return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
-
-#             # Create inventory adjustment
-#             inventory_adjustments.objects.create(
-#                 item=item,
-#                 quantity=quantity,
-#                 adjustment_type=adjustment_type,
-#                 adjustment_reason=reason,
-#                 adjusted_by_id=adjusted_by_id,  
-#                 sales_order_return=None,
-#                 created_at=timezone.now(),
-#                 is_processed=False
-#             )
-
-#             # Update stock
-#             stock.quantity -= quantity
-#             stock.save()
-
-#             check_safety_stock(item)
-
-#             messages.success(request, f'{quantity} units of {item.item_name} removed from stock.')
-#             return redirect('inventory_adjustments_list')  
-
-#         except items.DoesNotExist:
-#             messages.error(request, 'Invalid item selected.')
-#         except stock_items.DoesNotExist:
-#             messages.error(request, 'Stock entry for this item does not exist.')
-#         except Exception as e:
-#             messages.error(request, f'Error: {str(e)}')
-
-#     return render(request, 'inventory_adjustments/inventory_adjustments_list.html')
- 
-
-# # Helper functions for sales calculations
-# def get_daily_sales(date=None):
-#     """Calculate daily sales for a specific date (defaults to today)"""
-#     if date is None:
-#         date = timezone.now().date()
-    
-#     start_date = timezone.make_aware(datetime.combine(date, datetime.min.time()))
-#     end_date = timezone.make_aware(datetime.combine(date, datetime.max.time()))
-    
-#     return sales_orders.objects.filter(
-#         created_at__range=(start_date, end_date)
-#     ).aggregate(
-#         total_sales=Sum('net_total'),
-#         total_orders=Count('id')
-#     )
-
-
-# def get_monthly_sales(year=None, month=None):
-#     """Calculate monthly sales for a specific year/month (defaults to current)"""
-#     if year is None:
-#         year = timezone.now().year
-#     if month is None:
-#         month = timezone.now().month
-    
-#     # Debug print to check values
-#     print(f"Fetching monthly sales for {year}-{month}")
-    
-#     # Get first and last day of month for precise filtering
-#     first_day = timezone.make_aware(datetime(year, month, 1))
-#     if month == 12:
-#         last_day = timezone.make_aware(datetime(year+1, 1, 1) - timedelta(days=1))
-#     else:
-#         last_day = timezone.make_aware(datetime(year, month+1, 1) - timedelta(days=1))
-    
-#     result = sales_orders.objects.filter(
-#         created_at__range=(first_day, last_day)
-#     ).aggregate(
-#         total_sales=Sum('net_total'),
-#         total_orders=Count('id')
-#     )
-    
-#     # Debug print to check results
-#     print(f"Monthly sales result: {result}")
-    
-#     return result
-
-# def get_yearly_sales(year=None):
-#     """Calculate yearly sales for a specific year (defaults to current)"""
-#     if year is None:
-#         year = timezone.now().year
-    
-#     return sales_orders.objects.filter(
-#         created_at__year=year
-#     ).aggregate(
-#         total_sales=Sum('net_total'),
-#         total_orders=Count('id')
-#     )
-
-# # Sales Report Views
-# class SalesReportView(TemplateView):
-#     """Comprehensive sales report view with date filtering"""
-#     template_name = 'sales/sales_report.html'
-    
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-        
-#         # Get filter parameters from request
-#         report_type = self.request.GET.get('report_type', 'daily')
-#         custom_date = self.request.GET.get('custom_date')
-#         custom_month = self.request.GET.get('custom_month')
-#         custom_year = self.request.GET.get('custom_year')
-        
-#         # Initialize variables
-#         sales_data = {}
-#         period_label = ""
-        
-#         # Daily Report
-#         if report_type == 'daily':
-#             if custom_date:
-#                 try:
-#                     date = datetime.strptime(custom_date, '%Y-%m-%d').date()
-#                     sales_data = get_daily_sales(date)
-#                     period_label = date.strftime("%d %b %Y")
-#                 except ValueError:
-#                     messages.error(self.request, "Invalid date format. Using today's data.")
-#                     sales_data = get_daily_sales()
-#                     period_label = "Today"
-#             else:
-#                 sales_data = get_daily_sales()
-#                 period_label = "Today"
-        
-#         # Monthly Report
-#         elif report_type == 'monthly':
-#             if custom_month:
-#                 try:
-#                     year, month = map(int, custom_month.split('-'))
-#                     sales_data = get_monthly_sales(year, month)
-#                     period_label = datetime(year=year, month=month, day=1).strftime("%B %Y")
-#                 except (ValueError, IndexError):
-#                     messages.error(self.request, "Invalid month format. Using current month data.")
-#                     sales_data = get_monthly_sales()
-#                     period_label = "This Month"
-#             else:
-#                 sales_data = get_monthly_sales()
-#                 period_label = "This Month"
-        
-#         # Yearly Report
-#         elif report_type == 'yearly':
-#             if custom_year:
-#                 try:
-#                     year = int(custom_year)
-#                     sales_data = get_yearly_sales(year)
-#                     period_label = str(year)
-#                 except ValueError:
-#                     messages.error(self.request, "Invalid year format. Using current year data.")
-#                     sales_data = get_yearly_sales()
-#                     period_label = "This Year"
-#             else:
-#                 sales_data = get_yearly_sales()
-#                 period_label = "This Year"
-        
-#         # Prepare context data
-#         context.update({
-#             'report_type': report_type,
-#             'period_label': period_label,
-#             'total_sales': sales_data.get('total_sales', 0) or 0,
-#             'total_orders': sales_data.get('total_orders', 0) or 0,
-#             'custom_date': custom_date,
-#             'custom_month': custom_month,
-#             'custom_year': custom_year,
-#         })
-        
-#         return context    

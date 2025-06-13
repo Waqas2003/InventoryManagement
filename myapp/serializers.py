@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from .models import receive_note, receive_note_detail, transfer_note_detail, warehouse_stock, transfer_note,store, request_note, request_note_detail, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
-
+from .models import receive_note, vendor_bill, vendor_transfer_note, vendor_transfer_note_detail , receive_note_detail, transfer_note_detail, warehouse_stock, transfer_note,store, request_note, request_note_detail, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
@@ -34,13 +33,27 @@ class purchase_order_return_Serializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Duplicate adjustment IDs are not allowed")
             
         return value
+
+class vendor_transfer_note_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = vendor_transfer_note
+        fields = '__all__'
+
+class vendor_transfer_note_detail_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = vendor_transfer_note_detail
+        fields = '__all__'
+
+class vendor_bill_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = vendor_bill
+        fields = '__all__'
         
 class purchase_order_detail_Serializer(serializers.ModelSerializer):
     class Meta:
         model = purchase_order_detail
         fields = '__all__'
-        
-        
+                
 class purchase_order_return_detail_Serializer(serializers.ModelSerializer):
     class Meta:
         model = purchase_order_return_detail
@@ -102,15 +115,14 @@ class notification_Serializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class purchase_orders_Serializer(serializers.ModelSerializer):
-    vendor_id = serializers.IntegerField(required=True)
-    order_details = serializers.ListField(
-        child=serializers.DictField(),
-        required=True
-    )
+    class Meta:
+        model = purchase_orders
+        fields = '__all__'
+    
 
     class Meta:
         model = purchase_orders
-        exclude = ['total_amount', 'discount', 'tax_amount', 'net_total', 'purchase_order_number']    
+        exclude = ['purchase_order_number']    
         
 class purchase_receipts_Serializer(serializers.ModelSerializer):
     class Meta:

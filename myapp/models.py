@@ -142,24 +142,16 @@ class items(models.Model):
          return self.item_name
 
 class purchase_orders(models.Model):
-    sales_order_status_choices = [
-        ('Pending', 'pending'),
-        ('Processed', 'processed'),
-        ('Shipped', 'shipped'),
-        ('Completed', 'completed'),
-        ('Canceled', 'canceled'),
-    ]
     id = models.AutoField(primary_key=True)
     purchase_order_number = models.CharField(unique=True, max_length=100)
-    vendor = models.ForeignKey('vendors', models.CASCADE, blank=True, null=True)
-    # purchase_orders_details = models.ForeignKey('purchase_order_detail', on_delete=models.CASCADE, blank=True, null=True)
-    order_status = models.CharField(max_length=9, choices=sales_order_status_choices, default='pending')
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    discount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    net_total = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
-
+    warehouse = models.ForeignKey('warehouses', on_delete=models.CASCADE, null=True)
+    remarks= models.TextField(max_length=255, null= True, blank =True)
+    vendor = models.ForeignKey('vendors', on_delete=models.CASCADE , null= True, blank= True)
+    created_at = models.DateTimeField(default=timezone.now, blank = True, null= True)
+    status = models.CharField(max_length=50, choices=[('pending','Pending'), ('processed','Processed'), ('received','Received')],default='pending')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_at = models.DateTimeField(timezone.now, null = True, blank=True)
+    
     class Meta:        
         db_table = 'purchase_orders'
         verbose_name_plural = "purchase_orders"
@@ -169,16 +161,10 @@ class purchase_orders(models.Model):
 
 class purchase_order_detail(models.Model):
     id = models.AutoField(primary_key=True)
-    item = models.ForeignKey(items, on_delete=models.CASCADE)
-    # category= models.ForeignKey(items, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
-    purchase_order = models.ForeignKey(purchase_orders, on_delete=models.CASCADE)
-    price_per_piece = models.IntegerField()
-    discounted_price = models.IntegerField()
-    price_after_discount = models.IntegerField()
-    tax_price = models.IntegerField()
-    price_after_tax = models.IntegerField()
-    sub_total = models.IntegerField()
+    item = models.ForeignKey(items, on_delete=models.CASCADE, null= True, blank= True)
+    quantity= models.PositiveIntegerField()
+    purchase_order= models.ForeignKey(purchase_orders, models.CASCADE) 
+    created_at = models.DateTimeField(default=timezone.now, blank = True, null= True)
     
     def __str__(self):
         return f"Order {self.purchase_order.id} - item {self.item.id}"
@@ -191,7 +177,7 @@ class purchase_order_detail(models.Model):
 
 class purchase_order_return(models.Model):
     id = models.AutoField(primary_key=True)
-    purchase_orders = models.ForeignKey('purchase_orders',on_delete=models.CASCADE, null=True, blank=True,db_column="sales_order_id")
+    purchase_order = models.ForeignKey('purchase_orders',on_delete=models.CASCADE, null=True, blank=True,db_column="sales_order_id")
     vendor = models.ForeignKey('vendors',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
@@ -236,7 +222,6 @@ class purchase_receipts(models.Model):
         verbose_name_plural = "purchase_receipts"
 
 
-
 class sales_order_discounts(models.Model):
     id = models.AutoField(primary_key=True)
     sales_order = models.ForeignKey('sales_orders', models.DO_NOTHING, blank=True, null=True)
@@ -258,7 +243,6 @@ class area(models.Model):
         db_table = 'area'
         verbose_name_plural = "area"         
     
-
 class sales_orders(models.Model):
     sales_order_status_choices = [
         ('Pending', 'pending'),
@@ -306,6 +290,26 @@ class sales_order_return(models.Model):
     class Meta:        
         db_table = 'sales_order_return'
         verbose_name_plural = "sales_order_return"
+        
+class sales_order_detail(models.Model):
+    id = models.AutoField(primary_key=True)
+    item = models.ForeignKey(items, on_delete=models.CASCADE)
+    sales_order = models.ForeignKey(sales_orders, on_delete=models.CASCADE)
+    price_per_piece = models.IntegerField()
+    quantity = models.IntegerField()
+    discounted_price = models.IntegerField()
+    price_after_discount = models.IntegerField()
+    price_after_tax = models.IntegerField()
+    tax_price = models.IntegerField()
+    sub_total = models.IntegerField()
+
+    def __str__(self):
+        return f"Order {self.sales_order.id} - Item {self.item.id}"
+    
+    class Meta:
+        db_table = 'sales_order_details'
+        verbose_name_plural = "sales_order_detail"        
+        
 
 class sales_order_return_detail(models.Model):
     id = models.AutoField(primary_key=True)
@@ -434,26 +438,6 @@ class warehouse_stock(models.Model):
     class Meta:
         db_table = 'warehouse_stock'   
         verbose_name_plural = 'warehouse_stock'
-    
-class sales_order_detail(models.Model):
-    id = models.AutoField(primary_key=True)
-    item = models.ForeignKey(items, on_delete=models.CASCADE)
-    sales_order = models.ForeignKey(sales_orders, on_delete=models.CASCADE)
-    price_per_piece = models.IntegerField()
-    quantity = models.IntegerField()
-    discounted_price = models.IntegerField()
-    price_after_discount = models.IntegerField()
-    price_after_tax = models.IntegerField()
-    tax_price = models.IntegerField()
-    sub_total = models.IntegerField()
-
-    def __str__(self):
-        return f"Order {self.sales_order.id} - Item {self.item.id}"
-    
-    class Meta:
-        db_table = 'sales_order_details'
-        verbose_name_plural = "sales_order_detail"        
-
 
 class notification(models.Model):
     notification_type_choices = [
@@ -508,6 +492,7 @@ class request_note_detail(models.Model):
     item = models.ForeignKey(items, on_delete=models.CASCADE, null= True, blank= True)
     quantity= models.PositiveIntegerField()
     request_note= models.ForeignKey(request_note, models.CASCADE) 
+    created_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
     
     class Meta:
         db_table = 'request_note_detail'
@@ -563,3 +548,97 @@ class receive_note_detail(models.Model):
     class Meta:
         db_table = 'receive_note_detail'
         verbose_name_plural = 'receive_note_detail'           
+
+class vendor_transfer_note(models.Model):
+    id = models.AutoField(primary_key=True)
+    vendor_transfer_note_no = models.CharField(max_length=50, unique=True)
+    purchase_order = models.ForeignKey('purchase_orders', on_delete= models.CASCADE)
+    warehouse = models.ForeignKey(warehouses, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=[('dispatched','Dispatched'),('intransit', 'Intransit'),('delivered','Delivered')], default='dispatched')
+    remarks = models.TextField(max_length=255, null=True, blank=True)
+    vendor = models.ForeignKey('vendors',on_delete=models.CASCADE, null=True, blank=True )
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta: 
+        db_table = 'vendor_transfer_note'
+        verbose_name_plural = 'vendor_transfer_note'    
+
+    def __str__(self):
+        return self.vendor_transfer_note_no
+
+class vendor_transfer_note_detail(models.Model):
+    id = models.AutoField(primary_key=True)
+    vendor_transfer_note =models.ForeignKey('vendor_transfer_note', on_delete=models.CASCADE)
+    item = models.ForeignKey(items, on_delete=models.DO_NOTHING, null=True, blank=True)
+    price_per_piece = models.IntegerField()
+    quantity = models.IntegerField()    
+     
+    class Meta:
+        db_table = 'vendor_transfer_note_detail'
+        verbose_name_plural = 'vendor_transfer_note_detail'
+    
+class warehouse_receive_note(models.Model):
+    id = models.AutoField(primary_key=True)
+    receive_note_no = models.CharField(max_length=50, unique = True)
+    vendor_transfer_note = models.ForeignKey(vendor_transfer_note, on_delete=models.CASCADE)
+    received_at = models.DateTimeField(default=timezone.now)
+    received_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.DO_NOTHING, null=True, blank=True)
+    warehouse = models.ForeignKey('warehouses',on_delete=models.CASCADE )
+    status = models.CharField(max_length=50, choices=[('pending','Pending'), ('processed','Processed'), ('received','Received')],default='pending')  
+
+    class Meta:
+        db_table = 'warehouse_receive_note'
+        verbose_name_plural = 'warehouse_receive_note'
+
+    def __str__(self):
+        return self.receive_note_no
+    
+class warehouse_receive_note_detail(models.Model):
+    id = models.AutoField(primary_key= True)
+    warehouse_receive_note = models.ForeignKey('warehouse_receive_note', on_delete=models.CASCADE)
+    item= models.ForeignKey(items, on_delete= models.CASCADE)
+    quantity = models.PositiveIntegerField()
+        
+    class Meta:
+        db_table = 'warehouse_receive_note_detail'
+        verbose_name_plural = 'warehouse_receive_note_detail'
+    
+
+class vendor_bill(models.Model):
+    id = models.AutoField(primary_key=True)
+    bill_number = models.CharField(max_length=100, unique=True)
+    vendor_transfer_note = models.ForeignKey(vendor_transfer_note, on_delete=models.CASCADE)
+    # tax = models.ForeignKey('tax_configurations', on_delete=models.DO_NOTHING, null=True, blank=True)
+    # discount = models.ForeignKey('discounts', on_delete=models.DO_NOTHING, null=True,blank=True)
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due_date = models.DateField()
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('partial', 'Partially Paid')
+    ], default='pending')
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'vendor_bill'
+        verbose_name_plural = 'vendor_bill'
+        
+    def __str__(self):
+        return self.bill_number    
+
+class vendor_payment(models.Model):
+    bill = models.ForeignKey(vendor_bill, on_delete=models.CASCADE)
+    payment_date = models.DateTimeField(default=timezone.now)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=50, choices=[
+        ('cash', 'Cash'),
+        ('bank', 'Bank Transfer'),
+        ('cheque', 'Cheque'),
+        ('other', 'Other')
+    ])
+    reference_number = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'vendor_payment'
+        verbose_name_plural = 'vendor_payment'
