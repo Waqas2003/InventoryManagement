@@ -603,7 +603,9 @@ class warehouse_receive_note_detail(models.Model):
         db_table = 'warehouse_receive_note_detail'
         verbose_name_plural = 'warehouse_receive_note_detail'
     
-
+    def __str__(self):
+        return f"{self.quantity} of {self.item} received"
+    
 class vendor_bill(models.Model):
     id = models.AutoField(primary_key=True)
     bill_number = models.CharField(max_length=100, unique=True)

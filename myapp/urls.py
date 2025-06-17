@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import (vendor_transfer_note_ViewSet, vendor_bill_ViewSet, vendor_transfer_note_detail_ViewSet, SalesReportAPIView, warehouse_stock_ViewSet, PurchaseReportAPIView,store_ViewSet, receive_note_ViewSet, request_note_ViewSet, transfer_note_ViewSet, LoginView,categories_ViewSet,customers_ViewSet,discounts_ViewSet, inventory_adjustments_ViewSet, items_ViewSet,purchaseordersViewSet,purchase_receipts_ViewSet,sales_order_discounts_ViewSet,sales_orders_ViewSet,sales_order_tax_ViewSet,shipments_ViewSet,stock_items_ViewSet,tax_configurations_ViewSet,AuthUser_ViewSet,vendors_ViewSet,warehouses_ViewSet,CustomTokenRefreshView,SalesReportView, PurchaseReportView,sales_order_detail_ViewSet,area_ViewSet,PlaceOrderViewSet,purchase_order_return_ViewSet,purchase_order_return_detail_ViewSet,sales_order_return_ViewSet,purchase_order_detail_ViewSet,notification_ViewSet)
+from .views import (vendor_transfer_note_ViewSet,warehouse_receive_note_ViewSet,warehouse_receive_note_detail_ViewSet, vendor_bill_ViewSet, vendor_transfer_note_detail_ViewSet, SalesReportAPIView, warehouse_stock_ViewSet, PurchaseReportAPIView,store_ViewSet, receive_note_ViewSet, request_note_ViewSet, transfer_note_ViewSet, LoginView,categories_ViewSet,customers_ViewSet,discounts_ViewSet, inventory_adjustments_ViewSet, items_ViewSet,purchaseordersViewSet,purchase_receipts_ViewSet,sales_order_discounts_ViewSet,sales_orders_ViewSet,sales_order_tax_ViewSet,shipments_ViewSet,stock_items_ViewSet,tax_configurations_ViewSet,AuthUser_ViewSet,vendors_ViewSet,warehouses_ViewSet,CustomTokenRefreshView,SalesReportView, PurchaseReportView,sales_order_detail_ViewSet,area_ViewSet,PlaceOrderViewSet,purchase_order_return_ViewSet,purchase_order_return_detail_ViewSet,sales_order_return_ViewSet,purchase_order_detail_ViewSet,notification_ViewSet)
 # from .views import (place_order, purchase_order_return_view, process_return, SalesReportView)
 
 router = DefaultRouter()
@@ -36,7 +36,11 @@ router.register(r'receivenote',receive_note_ViewSet)
 router.register(r'warehousestock',warehouse_stock_ViewSet)
 router.register(r'vendorbill', vendor_bill_ViewSet)
 router.register(r'vendortransfernote', vendor_transfer_note_ViewSet)
-router.register(r'vendortransfernotedetail', vendor_transfer_note_detail_ViewSet)    
+router.register(r'vendortransfernotedetail', vendor_transfer_note_detail_ViewSet)  
+router.register(r'warehousereceivenote',warehouse_receive_note_ViewSet)
+router.register(r'warehousereceivenotedetail',warehouse_receive_note_detail_ViewSet)
+# router.register(r'vendorpayment',)
+ 
 # router.register(r'reports', ReportViewSet, basename='reports')
 
 

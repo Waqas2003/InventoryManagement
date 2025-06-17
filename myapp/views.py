@@ -1,6 +1,6 @@
 from rest_framework import viewsets,mixins,status
-from .models import categories,vendor_bill, warehouse_stock, vendor_transfer_note, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
-from .serializers import SalesReportSerializer,vendor_transfer_note_detail, vendor_bill_Serializer,vendor_transfer_note_detail_Serializer,vendor_transfer_note_Serializer , receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .models import categories,vendor_bill, warehouse_stock, warehouse_receive_note, warehouse_receive_note_detail, vendor_transfer_note, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
+from .serializers import SalesReportSerializer,warehouse_receive_note_Serializer,warehouse_receive_note_detail_Serializer,vendor_transfer_note_detail, vendor_bill_Serializer,vendor_transfer_note_detail_Serializer,vendor_transfer_note_Serializer , receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -22,6 +22,125 @@ from django.db import transaction
 import time
 from django.db.models import Sum, Count, F
 
+class warehouse_receive_note_ViewSet(viewsets.ModelViewSet):
+    queryset = warehouse_receive_note.objects.all()
+    serializer_class = warehouse_receive_note_Serializer
+    permission_classes = [IsAuthenticated]    
+    
+
+    def check_complete_transfer(self, transfer_note_obj):
+        """Check if all items in transfer note have been fully received"""
+        transfer_details = vendor_transfer_note_detail.objects.filter(vendor_transfer_note=transfer_note_obj)  # Changed from transfer_note
+        receive_notes = warehouse_receive_note.objects.filter(vendor_transfer_note=transfer_note_obj)  # Changed from transfer_note
+        
+        all_received = True
+        for transfer_detail in transfer_details:
+            total_received = warehouse_receive_note_detail.objects.filter(
+                warehouse_receive_note__in=receive_notes,  # Changed from receive_note
+                item=transfer_detail.item
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            if total_received < transfer_detail.quantity:
+                all_received = False
+                break
+        
+        if all_received:
+            transfer_note_obj.status = 'delivered'
+            transfer_note_obj.save()
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        try:
+            current_user = request.user
+            if not hasattr(current_user, 'warehouse') or not current_user.warehouse:
+                raise ValidationError("User is not associated with any Warehouse")
+            
+            warehouse = current_user.warehouse
+            vendor_transfer_note_id = request.data.get('vendor_transfer_note_id')
+            items_data = request.data.get('items', [])
+            
+            if not vendor_transfer_note_id:
+                raise ValidationError("Vendor Transfer note ID is required")
+            
+            try:
+                transfer_note_obj = vendor_transfer_note.objects.select_related('warehouse', 'vendor').get(id=vendor_transfer_note_id)
+            except vendor_transfer_note.DoesNotExist:
+                raise ValidationError(f"Vendor Transfer note {vendor_transfer_note_id} not found")
+            
+            if transfer_note_obj.warehouse != warehouse:
+                raise ValidationError("This transfer note is not intended for your Warehouse")
+            
+            receive_note_no = f"RN-{timezone.now().strftime('%Y%m%d-%H%M%S')}-{transfer_note_obj.id}"
+            
+            receive_note_obj = warehouse_receive_note.objects.create(
+                receive_note_no=receive_note_no,
+                vendor_transfer_note=transfer_note_obj,
+                warehouse=warehouse,
+                received_by=current_user,
+                status='received'
+            )
+            
+            for item_data in items_data:
+                item_id = item_data.get('item_id')
+                quantity = int(item_data.get('quantity', 0))
+                
+                if quantity <= 0:
+                    raise ValidationError(f"Quantity must be positive for item {item_id}")
+                
+                try:
+                    transfer_detail = vendor_transfer_note_detail.objects.get(
+                        vendor_transfer_note=transfer_note_obj,  # Changed from transfer_note
+                        item_id=item_id
+                    )
+                    
+                    if quantity > transfer_detail.quantity:
+                        raise ValidationError(
+                            f"Cannot receive more than transferred quantity for item {item_id} "
+                            f"(Transferred: {transfer_detail.quantity}, Received: {quantity})"
+                        )
+                    
+                    warehouse_receive_note_detail.objects.create(
+                        item_id=item_id,
+                        warehouse_receive_note=receive_note_obj,
+                        quantity=quantity
+                    )
+                    
+                    item = items.objects.get(id=item_id)
+                    stock, created = warehouse_stock.objects.get_or_create(
+                        warehouse=warehouse,
+                        item=item,
+                        defaults={'quantity': quantity}
+                    )
+                    
+                    if not created:
+                        stock.quantity = F('quantity') + quantity
+                        stock.save()
+                    
+                except vendor_transfer_note_detail.DoesNotExist:
+                    raise ValidationError(f"Item {item_id} not found in transfer note {vendor_transfer_note_id}")
+                except items.DoesNotExist:
+                    raise ValidationError(f"Item {item_id} not found")
+            
+            self.check_complete_transfer(transfer_note_obj)
+            
+            return Response({
+                'status': 'success',
+                'message': 'Warehouse Receive note created successfully',
+                'receive_note_id': receive_note_obj.id,
+            }, status=status.HTTP_201_CREATED)
+            
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {'error': f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+class warehouse_receive_note_detail_ViewSet(viewsets.ModelViewSet):
+    queryset = warehouse_receive_note_detail.objects.all()
+    serializer_class = warehouse_receive_note_detail_Serializer
+    permission_classes = [IsAuthenticated]
 
 class vendor_bill_ViewSet(viewsets.ModelViewSet):
     queryset = vendor_bill.objects.all()
@@ -33,13 +152,6 @@ class vendor_transfer_note_detail_ViewSet(viewsets.ModelViewSet):
     serializer_class = vendor_transfer_note_detail_Serializer  
     permission_classes = [IsAuthenticated]
     
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from decimal import Decimal
-from django.utils import timezone
-
 class vendor_transfer_note_ViewSet(viewsets.ModelViewSet):
     queryset = vendor_transfer_note.objects.all()
     serializer_class = vendor_transfer_note_Serializer
@@ -94,11 +206,11 @@ def create_vendor_transfer_note_api(request_data, user):
             transfer_note = vendor_transfer_note.objects.create(
                 vendor_transfer_note_no=request_data['vendor_transfer_note_no'],
                 purchase_order=purchase_order,
-                warehouse=warehouse,  # This is now guaranteed to exist
+                warehouse=warehouse, 
                 status=request_data.get('status', 'dispatched'),
                 remarks=request_data.get('remarks', ''),
                 vendor=vendor,
-                # created_by=user
+                
             )
 
             # 4. Process Items and Calculate Total
