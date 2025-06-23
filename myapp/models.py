@@ -90,23 +90,34 @@ class inventory_adjustments(models.Model):
     adjustment_type_choices = [
         ('Return', 'return'),
         ('Damage', 'damage'),
-        ('Loss', 'loss'),
+        ('Loss', 'loss'), 
         ('Unsold_items','unsold_items')
     ]   
-    # sales_order = models.ForeignKey("sales-order",on_delete=models.CASCADE, blank= True, null=True)
     id = models.AutoField(primary_key=True)
     item = models.ForeignKey('items', models.PROTECT)  
     sales_order_return = models.ForeignKey('sales_order_return', models.PROTECT,null=True,blank=True)
     adjustment_type = models.CharField(max_length=15, choices=adjustment_type_choices, default='return',blank=True, null=True)
     quantity = models.IntegerField()
     adjusted_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True)
+    store = models.ForeignKey('store', on_delete=models.CASCADE)
     adjustment_reason = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     is_processed = models.BooleanField(default=False)
-
+    
     class Meta:        
         db_table = 'inventory_adjustments'
         verbose_name_plural = "inventory_adjustments"       
+
+class defective_stock(models.Model):
+    id = models.AutoField(primary_key=True)
+    item = models.ForeignKey('items', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    inventory_adjustment = models.ForeignKey('inventory_adjustments',on_delete=models.CASCADE) 
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'defective_stock'
+        verbose_name_plural = 'defective_stock'
 
 class items(models.Model):
     item_type_choices = [
@@ -174,7 +185,6 @@ class purchase_order_detail(models.Model):
         db_table = 'purchase_order_detail'
         verbose_name_plural = "purchase_order_detail"        
 
-
 class purchase_order_return(models.Model):
     id = models.AutoField(primary_key=True)
     purchase_order = models.ForeignKey('purchase_orders',on_delete=models.CASCADE, null=True, blank=True,db_column="sales_order_id")
@@ -220,7 +230,6 @@ class purchase_receipts(models.Model):
     class Meta:        
         db_table = 'purchase_receipts'
         verbose_name_plural = "purchase_receipts"
-
 
 class sales_order_discounts(models.Model):
     id = models.AutoField(primary_key=True)
@@ -278,18 +287,18 @@ class sales_order_return(models.Model):
     ]
     id = models.AutoField(primary_key=True)
     sales_order = models.ForeignKey('sales_orders',on_delete=models.CASCADE, null=True, blank=True,db_column="sales_order_id")
-    sales_order_detail = models.ForeignKey('sales_order_detail', on_delete=models.CASCADE, null=True, blank=True, db_column="sales_order_detail_id")
+    # sales_order_detail = models.ForeignKey('sales_order_detail', on_delete=models.CASCADE, null=True, blank=True, db_column="sales_order_detail_id")
     return_type = models.CharField(max_length=15,choices=return_type_choices,default='return')
     return_reason = models.TextField(blank=True, null=True)
     customer = models.ForeignKey('customers',on_delete=models.CASCADE, null=True, blank=True, db_column="customer_id")
     total_refund_amount = models.DecimalField(max_digits=10,  decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now,blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, blank=True, null=True, db_column='created_by')
-
-
+    store = models.ForeignKey('store', on_delete=models.CASCADE)
     class Meta:        
         db_table = 'sales_order_return'
         verbose_name_plural = "sales_order_return"
+          
         
 class sales_order_detail(models.Model):
     id = models.AutoField(primary_key=True)
@@ -310,7 +319,6 @@ class sales_order_detail(models.Model):
         db_table = 'sales_order_details'
         verbose_name_plural = "sales_order_detail"        
         
-
 class sales_order_return_detail(models.Model):
     id = models.AutoField(primary_key=True)
     return_sale = models.ForeignKey("sales_order_return",on_delete=models.CASCADE, db_column="return_sale_id")
@@ -325,6 +333,17 @@ class sales_order_return_detail(models.Model):
         db_table = 'sales_order_return_detail'
         verbose_name_plural = "sales_order_return_detail"
         
+class store_return_to_warehouse(models.Model):
+    id = models.AutoField(primary_key=True)
+    inventory_adjustments = models.ForeignKey('inventory_adjustments', on_delete= models.CASCADE)        
+    warehouse = models.ForeignKey('warehouses', on_delete=models.CASCADE)
+    store = models.ForeignKey('store',on_delete=models.CASCADE) 
+    created_at = models.DateTimeField(timezone.now)
+    
+    class Meta: 
+        db_table = 'store_return_to_warehouse'
+        verbose_name_plural = 'sales_return_to_warehouse' 
+
 
 class sales_order_tax(models.Model):
     id = models.AutoField(primary_key=True)
@@ -610,9 +629,8 @@ class vendor_bill(models.Model):
     id = models.AutoField(primary_key=True)
     bill_number = models.CharField(max_length=100, unique=True)
     vendor_transfer_note = models.ForeignKey(vendor_transfer_note, on_delete=models.CASCADE)
-    # tax = models.ForeignKey('tax_configurations', on_delete=models.DO_NOTHING, null=True, blank=True)
-    # discount = models.ForeignKey('discounts', on_delete=models.DO_NOTHING, null=True,blank=True)
     net_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    paid_amount = models.PositiveIntegerField()
     due_date = models.DateField()
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pending'),
@@ -620,7 +638,11 @@ class vendor_bill(models.Model):
         ('partial', 'Partially Paid')
     ], default='pending')
     created_at = models.DateTimeField(default=timezone.now)
-
+    
+    @property
+    def remaining_balance(self):
+        return self.net_amount - self.paid_amount
+    
     class Meta:
         db_table = 'vendor_bill'
         verbose_name_plural = 'vendor_bill'
@@ -629,13 +651,14 @@ class vendor_bill(models.Model):
         return self.bill_number    
 
 class vendor_payment(models.Model):
+    id = models.AutoField(primary_key=True)
     bill = models.ForeignKey(vendor_bill, on_delete=models.CASCADE)
     payment_date = models.DateTimeField(default=timezone.now)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_method = models.CharField(max_length=50, choices=[
         ('cash', 'Cash'),
-        ('bank', 'Bank Transfer'),
-        ('cheque', 'Cheque'),
+        # ('bank', 'Bank Transfer'),
+        # ('cheque', 'Cheque'),
         ('other', 'Other')
     ])
     reference_number = models.CharField(max_length=100, blank=True)

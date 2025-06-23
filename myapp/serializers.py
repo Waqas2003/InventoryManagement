@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import receive_note, warehouse_receive_note_detail, warehouse_receive_note, vendor_bill, vendor_transfer_note, vendor_transfer_note_detail , receive_note_detail, transfer_note_detail, warehouse_stock, transfer_note,store, request_note, request_note_detail, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
+from .models import store_return_to_warehouse, defective_stock, vendor_payment, receive_note, warehouse_receive_note_detail, warehouse_receive_note, vendor_bill, vendor_transfer_note, vendor_transfer_note_detail , receive_note_detail, transfer_note_detail, warehouse_stock, transfer_note,store, request_note, request_note_detail, categories, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
@@ -33,6 +33,17 @@ class purchase_order_return_Serializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Duplicate adjustment IDs are not allowed")
             
         return value
+
+class defective_stock_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = defective_stock
+        fields = '__all__'
+
+class store_return_to_warehouse_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = store_return_to_warehouse
+        fields = '__all__'
+
 
 class vendor_transfer_note_Serializer(serializers.ModelSerializer):
     class Meta:
@@ -281,5 +292,8 @@ class warehouse_receive_note_detail_Serializer(serializers.Serializer):
         model = warehouse_receive_note_detail
         fields = '__all__'            
         
-        
+class vendor_payment_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = vendor_payment
+        fields = '__all__'        
         

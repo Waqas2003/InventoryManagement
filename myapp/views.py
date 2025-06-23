@@ -1,6 +1,6 @@
 from rest_framework import viewsets,mixins,status
-from .models import categories,vendor_bill, warehouse_stock, warehouse_receive_note, warehouse_receive_note_detail, vendor_transfer_note, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
-from .serializers import SalesReportSerializer,warehouse_receive_note_Serializer,warehouse_receive_note_detail_Serializer,vendor_transfer_note_detail, vendor_bill_Serializer,vendor_transfer_note_detail_Serializer,vendor_transfer_note_Serializer , receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
+from .models import store_return_to_warehouse,defective_stock, vendor_payment, categories,vendor_bill, warehouse_stock, warehouse_receive_note, warehouse_receive_note_detail, vendor_transfer_note, store,request_note, request_note_detail, receive_note, receive_note_detail, transfer_note, transfer_note_detail, sales_order_return,sales_order_return_detail,notification, purchase_order_return_detail, sales_order_detail, purchase_order_return, area,purchase_order_detail, customers, discounts, inventory_adjustments, items, purchase_orders, purchase_receipts, Custom_User, sales_order_discounts, sales_orders, sales_order_tax,shipments, stock_items, tax_configurations,  vendors, warehouses
+from .serializers import store_return_to_warehouse_Serializer, defective_stock_Serializer, vendor_payment_Serializer, SalesReportSerializer,warehouse_receive_note_Serializer,warehouse_receive_note_detail_Serializer,vendor_transfer_note_detail, vendor_bill_Serializer,vendor_transfer_note_detail_Serializer,vendor_transfer_note_Serializer , receive_note_detail_Serializer, request_note_detail_Serializer,  warehouse_stock_Serializer, request_note_Serializer, transfer_note_detail_Serializer, transfer_note_Serializer, receive_note_Serializer, store_Serializer, CustomTokenRefreshSerializer, categories_Serializer, sales_order_return_Serializer,notification_Serializer, sales_order_return_detail_Serializer, purchase_order_return_detail_Serializer,purchase_order_return_Serializer,purchase_order_detail_Serializer, sales_order_detail_Serializer, place_order_Serializer,area_Serializer, customers_Serializer, discounts_Serializer, inventory_adjustments_Serializer, items_Serializer, purchase_orders_Serializer, purchase_receipts_Serializer, sales_order_discounts_Serializer, sale_orders_Serializer, sales_order_tax_Serializer, shipments_Serializer, stock_items_Serializer, tax_configurations_Serializer, AuthUserSerializer, vendors_Serializer, warehouses_Serializer
 from rest_framework.views import APIView
 from django.views.generic import TemplateView
 from rest_framework.response import Response
@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.db import models
-from django.core.exceptions import ValidationError, ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError,  ValidationError
 from django.utils import timezone
 from django.utils.timezone import now
 from datetime import datetime, timedelta
@@ -22,6 +22,76 @@ from django.db import transaction
 import time
 from django.db.models import Sum, Count, F
 
+class vendor_payment_ViewSet(viewsets.ModelViewSet):
+    queryset = vendor_payment.objects.all()
+    serializer_class = vendor_payment_Serializer
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        try:
+            bill_id = request.data.get('bill')
+            amount = Decimal(request.data.get('amount', 0))
+            payment_method = request.data.get('payment_method')
+            
+            # Validate required fields
+            if not bill_id or not amount or not payment_method:
+                raise ValidationError("Bill ID, amount, and payment method are required")
+            
+            try:
+                bill = vendor_bill.objects.select_for_update().get(id=bill_id)
+            except vendor_bill.DoesNotExist:
+                raise ValidationError(f"Bill {bill_id} not found")
+            
+            # Validate payment amount
+            if amount <= 0:
+                raise ValidationError("Payment amount must be positive")
+            
+            remaining_amount = bill.net_amount - bill.paid_amount
+            if amount > remaining_amount:
+                raise ValidationError(
+                    f"Payment amount ({amount}) exceeds remaining bill amount ({remaining_amount})"
+                )
+           
+           #Create Payment 
+            payment = vendor_payment.objects.create(
+                bill=bill,
+                amount=amount,
+                payment_method=payment_method,
+                reference_number=request.data.get('reference_number', ''),
+                notes=request.data.get('notes', ''),
+                remaining_balance = remaining_amount,
+                net_total = bill.net_amount
+            )
+            
+            # Update bill paid amount
+            bill.paid_amount = F('paid_amount') + amount
+            bill.save()
+            
+            # Refresh the bill to get updated values
+            bill.refresh_from_db()
+            
+            # Now we can safely compare
+            if bill.paid_amount >= bill.net_amount:
+                bill.status = 'paid'
+                bill.save()
+                
+            return Response({
+                'status': 'success',
+                'message': 'Payment recorded successfully',
+                'payment_id': payment.id,
+                'bill_status': bill.status,
+                'remaining_balance': float(bill.net_amount - bill.paid_amount)
+            }, status=status.HTTP_201_CREATED)
+            
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {'error': f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class warehouse_receive_note_ViewSet(viewsets.ModelViewSet):
     queryset = warehouse_receive_note.objects.all()
     serializer_class = warehouse_receive_note_Serializer
@@ -30,13 +100,13 @@ class warehouse_receive_note_ViewSet(viewsets.ModelViewSet):
 
     def check_complete_transfer(self, transfer_note_obj):
         """Check if all items in transfer note have been fully received"""
-        transfer_details = vendor_transfer_note_detail.objects.filter(vendor_transfer_note=transfer_note_obj)  # Changed from transfer_note
-        receive_notes = warehouse_receive_note.objects.filter(vendor_transfer_note=transfer_note_obj)  # Changed from transfer_note
+        transfer_details = vendor_transfer_note_detail.objects.filter(vendor_transfer_note=transfer_note_obj)  
+        receive_notes = warehouse_receive_note.objects.filter(vendor_transfer_note=transfer_note_obj)  
         
         all_received = True
         for transfer_detail in transfer_details:
             total_received = warehouse_receive_note_detail.objects.filter(
-                warehouse_receive_note__in=receive_notes,  # Changed from receive_note
+                warehouse_receive_note__in=receive_notes, 
                 item=transfer_detail.item
             ).aggregate(total=Sum('quantity'))['total'] or 0
             
@@ -246,6 +316,7 @@ def create_vendor_transfer_note_api(request_data, user):
                 # total_amount=total_amount,
                 # tax_amount=tax_amount,
                 # discount=Decimal('0.00'),
+                paid_amount = 0,
                 net_amount=total_amount ,
                 due_date=timezone.now() + timezone.timedelta(days=30),
                 status='pending',
@@ -341,26 +412,30 @@ def process_return(request_data, user):
     with transaction.atomic():
         try:
             # 1. Validate Input Data
-            required_fields = ['sales_order_id', 'return_details', 'return_reason', 'return_type', 'created_by']
+            required_fields = ['sales_order_id', 'return_details', 'return_reason', 'return_type']
             for field in required_fields:
                 if field not in request_data:
                     raise ValueError(f"Missing required field: {field}")
 
-            valid_return_types = ['return', 'damage', 'loss']
+            valid_return_types = ['return', 'damage', 'loss', 'unsold_items']
             if request_data['return_type'] not in valid_return_types:
                 raise ValueError(f"Invalid return type. Must be one of: {', '.join(valid_return_types)}")
 
-            try:
-                create_by_user = Custom_User.objects.get(id=request_data['created_by'])
-            except Custom_User.DoesNotExist:
-                raise ValueError(f"User with ID {request_data['created_by']} does not exist")
+            # Get the current user and their store
+            current_user = user
+            if not hasattr(current_user, 'store') or not current_user.store:
+                raise ValidationError("User is not associated with any store")
+            user_store = current_user.store  # The store associated with logged-in user
                     
-            # 2. Verify Sales Order exists
+            # 2. Verify Sales Order exists and belongs to user's store
             try:
-                sales_order = sales_orders.objects.get(id=request_data['sales_order_id'])
+                sales_order = sales_orders.objects.get(
+                    id=request_data['sales_order_id'],
+                    store=user_store  # Ensure order belongs to user's store
+                )
             except sales_orders.DoesNotExist:
-                raise ValueError(f"Sales Order {request_data['sales_order_id']} does not exist")
-            
+                raise ValueError(f"Sales Order {request_data['sales_order_id']} does not exist in your store")
+
             # Verify Sales order detail 
             sales_detail_id = request_data['return_details'][0]['sales_order_detail_id']
             try:
@@ -376,11 +451,12 @@ def process_return(request_data, user):
                 sales_order=sales_order,
                 customer=sales_order.customer,
                 total_refund_amount=0,
-                sales_order_detail=sales_detail,
+                # sales_order_detail=sales_detail,
                 return_type=request_data['return_type'],  
                 return_reason=request_data['return_reason'],  
                 created_at=timezone.now(),
-                created_by=create_by_user
+                created_by=current_user,
+                store=user_store  # Add store reference to return header
             )
 
             total_refund = Decimal('0')
@@ -419,44 +495,212 @@ def process_return(request_data, user):
                     return_quantity=int(detail['return_quantity']),
                     price_per_piece=item_detail.price_per_piece,
                     subtotal=refund_amount,  
-                    created_at=timezone.now()
+                    created_at=timezone.now(),
+                    # store=user_store  # Add store reference to return detail
                 )
 
-                # Inventory Adjustment
+                # Inventory Handling
                 if request_data['return_type'] == 'return':
+                    # Normal return - goes back to store stock
                     try:
-                        stock_item = stock_items.objects.get(item=item_detail.item)
+                        stock_item = stock_items.objects.select_for_update().get(
+                            item=item_detail.item, 
+                            store=user_store  # Only update stock in user's store
+                        )
                         stock_item.quantity += int(detail['return_quantity'])
                         stock_item.save()
                     except stock_items.DoesNotExist:
-                        raise ValueError(f"No stock record found for item {item_detail.item.item_name}")
+                        stock_items.objects.create(
+                            item=item_detail.item,
+                            store=user_store,
+                            quantity=int(detail['return_quantity'])
+                        )
 
-                # Create inventory adjustment with the same return_type
-                inventory_adjustments.objects.create(
+                # Create inventory adjustment with store reference
+                adjustment = inventory_adjustments.objects.create(
                     item=item_detail.item,
                     sales_order_return=return_header,
                     adjustment_type=request_data['return_type'],
                     quantity=int(detail['return_quantity']),
                     adjustment_reason=request_data['return_reason'],
                     created_at=timezone.now(),
-                    adjusted_by=create_by_user 
+                    adjusted_by=current_user,
+                    store=user_store  # Set store to user's store
                 )
+
+                # For damaged/unsold items, create warehouse transfer record
+                # if request_data['return_type'] in ['damage', 'unsold_items']:
+                #     store_return_to_warehouse.objects.create(
+                #         inventory_adjustments=adjustment,
+                #         warehouse=user_store.primary_warehouse,  # Assuming store has primary_warehouse field
+                #         store=user_store,
+                #         created_at=timezone.now()
+                #     )
 
             # 5. Update Return Header with Total Refund
             return_header.total_refund_amount = total_refund
             return_header.save()
 
-            # 6. Update Customer Credit (if applicable)
+            # 6. Update Customer Credit (if applicable return type)
             if request_data['return_type'] == 'return':
                 customer = sales_order.customer
-                customer.total_bill = (customer.total_bill or Decimal('0')) - total_refund
+                customer.total_bill = F('total_bill') - total_refund
                 customer.save()
 
             return return_header
-        
 
         except Exception as e:
             raise ValueError(f"Return processing failed: {str(e)}")
+        
+        
+# def process_return(request_data, user):
+#     with transaction.atomic():
+#         try:
+#             # 1. Validate Input Data
+#             required_fields = ['sales_order_id', 'return_details', 'return_reason', 'return_type']
+#             for field in required_fields:
+#                 if field not in request_data:
+#                     raise ValueError(f"Missing required field: {field}")
+
+#             valid_return_types = ['return', 'damage', 'loss']
+#             if request_data['return_type'] not in valid_return_types:
+#                 raise ValueError(f"Invalid return type. Must be one of: {', '.join(valid_return_types)}")
+
+#             # 2. Verify Sales Order exists and belongs to user's store
+#             try:
+#                 sales_order = sales_orders.objects.select_related('store').get(id=request_data['sales_order_id'])
+#                 if sales_order.store != user.store:
+#                     raise ValueError("Sales order doesn't belong to your store")
+#             except sales_orders.DoesNotExist:
+#                 raise ValueError(f"Sales Order {request_data['sales_order_id']} does not exist")
+            
+#             # 3. Create Return Header with return_type
+#             return_header = sales_order_return.objects.create(
+#                 sales_order=sales_order,
+#                 customer=sales_order.customer,
+#                 total_refund_amount=0,
+#                 return_type=request_data['return_type'],
+#                 return_reason=request_data['return_reason'],
+#                 created_at=timezone.now(),
+#                 created_by=user,
+#                 store=user.store  
+#             )
+
+#             total_refund = Decimal('0')
+#             total_tax_refund = Decimal('0')
+#             total_discount_adjustment = Decimal('0')
+            
+#             # 4. Process Each Return Item
+#             for detail in request_data['return_details']:
+#                 try:
+#                     item_detail = sales_order_detail.objects.select_related('item').get(
+#                         id=detail['sales_order_detail_id'],
+#                         sales_order=sales_order
+#                     )
+#                 except sales_order_detail.DoesNotExist:
+#                     raise ValueError(
+#                         f"Order detail {detail['sales_order_detail_id']} not found "
+#                         f"in order {request_data['sales_order_id']}"
+#                     )
+
+#                 # Validate return quantity
+#                 return_quantity = Decimal(str(detail['return_quantity']))
+#                 if return_quantity > item_detail.quantity:
+#                     raise ValueError(
+#                         f"Return quantity ({return_quantity}) exceeds "
+#                         f"ordered quantity ({item_detail.quantity}) for item {item_detail.item.item_name}"
+#                     )
+
+#                 # Calculate refund amounts considering original discounts and taxes
+#                 original_quantity = Decimal(str(item_detail.quantity))
+#                 quantity_ratio = return_quantity / original_quantity
+                
+#                 refund_amount = item_detail.sub_total * quantity_ratio
+#                 tax_refund = item_detail.tax_price * return_quantity
+#                 discount_adjustment = (item_detail.price_per_piece - item_detail.discounted_price) * return_quantity
+                
+#                 total_refund += refund_amount
+#                 total_tax_refund += tax_refund
+#                 total_discount_adjustment += discount_adjustment
+
+#                 # Create Return Detail
+#                 sales_order_return_detail.objects.create(
+#                     return_sale=return_header,
+#                     sales_order_detail=item_detail,
+#                     item=item_detail.item,
+#                     return_quantity=return_quantity,
+#                     price_per_piece=item_detail.price_per_piece,
+#                     discounted_price=item_detail.discounted_price,
+#                     tax_price=item_detail.tax_price,
+#                     subtotal=refund_amount,
+#                     created_at=timezone.now()
+#                 )
+
+#                 # Inventory Adjustment - only for 'return' type
+#                 if request_data['return_type'] == 'return':
+#                     try:
+#                         # Get stock ONLY from the user's associated store
+#                         stock_item = stock_items.objects.select_for_update().get(
+#                             item=item_detail.item, 
+#                             store=user.store
+#                         )
+#                         stock_item.quantity += return_quantity
+#                         stock_item.save()
+                        
+#                         # Check if stock is back above safety level
+#                         if (stock_item.safety_stock_level is not None and 
+#                             stock_item.quantity > stock_item.safety_stock_level):
+#                             # Update any existing low stock notifications
+#                             notification.objects.filter(
+#                                 item=item_detail.item,
+#                                 store=user.store,
+#                                 status='active'
+#                             ).update(status='resolved')
+                            
+#                     except stock_items.DoesNotExist:
+#                         # If item wasn't in stock, create new stock record
+#                         stock_items.objects.create(
+#                             item=item_detail.item,
+#                             store=user.store,
+#                             quantity=return_quantity
+#                         )
+
+#                 # Create inventory adjustment
+#                 inventory_adjustments.objects.create(
+#                     item=item_detail.item,
+#                     sales_order_return=return_header,
+#                     adjustment_type=request_data['return_type'],
+#                     quantity=return_quantity,
+#                     adjustment_reason=request_data['return_reason'],
+#                     created_at=timezone.now(),
+#                     adjusted_by=user,
+#                     store=user.store
+#                 )
+
+#             # 5. Update Return Header with Totals
+#             return_header.total_refund_amount = total_refund
+#             return_header.tax_amount = total_tax_refund
+#             return_header.discount_adjustment = total_discount_adjustment
+#             return_header.save()
+
+#             # 6. Update Customer Credit (if applicable return type)
+#             if request_data['return_type'] == 'return':
+#                 customer = sales_order.customer
+#                 customer.total_bill = F('total_bill') - total_refund
+#                 customer.save()
+
+#             # 7. Update original sales order totals if needed
+#             if sales_order.order_status != 'Cancelled':
+#                 sales_order.net_total = F('net_total') - total_refund
+#                 sales_order.tax_amount = F('tax_amount') - total_tax_refund
+#                 sales_order.discount = F('discount') - total_discount_adjustment
+#                 sales_order.save()
+
+#             return return_header
+
+#         except Exception as e:
+#             raise ValueError(f"Return processing failed: {str(e)}")
+
 
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
@@ -537,7 +781,6 @@ class CustomUpdateMixin(mixins.UpdateModelMixin):
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class purchase_order_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = purchase_order_detail.objects.all()
     serializer_class = purchase_order_detail_Serializer
@@ -559,7 +802,7 @@ def check_safety_stock(item):
                     created_at=timezone.now(),
                     is_read=False
                 )
-                # Optional: Send to WebSocket
+                # Optional: Send to WebSocketi
                 from asgiref.sync import async_to_sync
                 from channels.layers import get_channel_layer
                 
@@ -639,7 +882,7 @@ class PlaceOrderViewSet(viewsets.ViewSet):
                     try:
                         stock_item = stock_items.objects.select_for_update().get(
                             item=item, 
-                            store=store  # Only check stock in user's store
+                            store=store  
                         )
                     except stock_items.DoesNotExist:
                         raise ValidationError(f"Item {item.item_name} is not available in your store ({store.store_name})")
@@ -773,7 +1016,10 @@ class PlaceOrderViewSet(viewsets.ViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+class defective_stock_ViewSet(CustomCreateMixin, CustomDestroyMixin, CustomUpdateMixin, viewsets.ModelViewSet):
+    queryset = defective_stock.objects.all()
+    serializer_class = defective_stock_Serializer
+    permission_classes = [IsAuthenticated]
     
 class SalesReportView(APIView):
     def get(self, request):
@@ -799,6 +1045,7 @@ class customers_ViewSet(CustomCreateMixin,CustomUpdateMixin,CustomDestroyMixin,v
     queryset = customers.objects.all()
     serializer_class = customers_Serializer
     permission_classes = [IsAuthenticated]
+
 
 class discounts_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset = discounts.objects.all()
@@ -1058,7 +1305,70 @@ class warehouse_stock_ViewSet(CustomCreateMixin,CustomUpdateMixin, CustomDestroy
     serializer_class = warehouse_stock_Serializer
     permission_classes = [IsAuthenticated]
 
-class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin,viewsets.ModelViewSet):
+# class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin,viewsets.ModelViewSet):
+#     queryset = inventory_adjustments.objects.all()
+#     serializer_class = inventory_adjustments_Serializer
+#     permission_classes = [IsAuthenticated]
+
+#     @transaction.atomic
+#     def create(self, request):
+#         serializer = self.get_serializer(data=request.data)
+#         if serializer.is_valid():
+#             try:
+#                 data = serializer.validated_data
+#                 item = data['item']
+#                 quantity = data['quantity']
+#                 adjustment_type = data['adjustment_type']
+#                 reason = data.get('adjustment_reason', '')
+#                 adjusted_by = data['adjusted_by']  
+
+#                 # Validate adjustment type
+#                 if adjustment_type not in ['Damage', 'Unsold_items']:
+#                     return Response(
+#                         {'error': 'Only Damage or Unsold_items adjustments are allowed'},
+#                         status=400
+#                     )   
+
+#                 # Check stock
+#                 stock = stock_items.objects.get(item=item)
+#                 if stock.quantity < quantity:
+#                     return Response(
+#                         {'error': f'Only {stock.quantity} items in stock. Cannot adjust {quantity}.'},
+#                         status=400
+#                     )
+
+#                 # Create inventory adjustment
+#                 inventory_adjustments.objects.create(
+#                     item=item,
+#                     quantity=quantity,
+#                     adjustment_type=adjustment_type,
+#                     adjustment_reason=reason,
+#                     adjusted_by=adjusted_by,
+#                     sales_order_return=None,
+#                     created_at=timezone.now(),
+#                     is_processed=False
+#                 )
+
+#                 # Update stock
+#                 stock.quantity -= quantity
+#                 stock.save()
+#                 check_safety_stock(item)
+
+#                 return Response({
+#                     'status': "success",
+#                     'message': f'{quantity} units of {item.item_name} removed from stock',
+#                     'remaining_stock': stock.quantity
+#                 }, status=201)
+
+#             except stock_items.DoesNotExist:
+#                 return Response({'error': 'Item not in stock'}, status=400)
+#             except Exception as e:
+#                 return Response({'error': str(e)}, status=400)
+
+#         return Response(serializer.errors, status=400)
+
+
+class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, CustomDestroyMixin, viewsets.ModelViewSet):
     queryset = inventory_adjustments.objects.all()
     serializer_class = inventory_adjustments_Serializer
     permission_classes = [IsAuthenticated]
@@ -1073,21 +1383,34 @@ class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, Custom
                 quantity = data['quantity']
                 adjustment_type = data['adjustment_type']
                 reason = data.get('adjustment_reason', '')
-                adjusted_by = data['adjusted_by']  
+                adjusted_by = data['adjusted_by']
+                store = request.user.store  
 
                 # Validate adjustment type
                 if adjustment_type not in ['Damage', 'Unsold_items']:
                     return Response(
                         {'error': 'Only Damage or Unsold_items adjustments are allowed'},
-                        status=400
+                        status=status.HTTP_400_BAD_REQUEST
                     )   
 
-                # Check stock
-                stock = stock_items.objects.get(item=item)
+                # Check stock - filter by both item and store
+                try:
+                    stock = stock_items.objects.get(item=item, store=store)
+                except stock_items.DoesNotExist:
+                    return Response(
+                        {'error': 'Item not in stock for your store'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                except stock_items.MultipleObjectsReturned:
+                    return Response(
+                        {'error': 'Multiple stock records found for this item in your store'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
                 if stock.quantity < quantity:
                     return Response(
                         {'error': f'Only {stock.quantity} items in stock. Cannot adjust {quantity}.'},
-                        status=400
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
                 # Create inventory adjustment
@@ -1097,6 +1420,7 @@ class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, Custom
                     adjustment_type=adjustment_type,
                     adjustment_reason=reason,
                     adjusted_by=adjusted_by,
+                    store=store,  # Add store reference
                     sales_order_return=None,
                     created_at=timezone.now(),
                     is_processed=False
@@ -1105,21 +1429,19 @@ class inventory_adjustments_ViewSet(CustomUpdateMixin, CustomCreateMixin, Custom
                 # Update stock
                 stock.quantity -= quantity
                 stock.save()
-                check_safety_stock(item)
+                check_safety_stock(item, store)  # Pass store to safety stock check
 
                 return Response({
                     'status': "success",
                     'message': f'{quantity} units of {item.item_name} removed from stock',
-                    'remaining_stock': stock.quantity
-                }, status=201)
+                    'remaining_stock': stock.quantity,
+                    'store': store.store_name
+                }, status=status.HTTP_201_CREATED)
 
-            except stock_items.DoesNotExist:
-                return Response({'error': 'Item not in stock'}, status=400)
             except Exception as e:
-                return Response({'error': str(e)}, status=400)
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(serializer.errors, status=400)
-
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class items_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = items.objects.all()
@@ -1263,15 +1585,134 @@ class purchase_order_return_ViewSet(viewsets.ModelViewSet):
         """Handle vendor refund processing using correct field"""
         vendor.total_payables = (vendor.total_payables or Decimal('0')) - amount
         vendor.save()        
-
-
     
 class purchase_order_return_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = purchase_order_return_detail.objects.all()
     serializer_class = purchase_order_return_detail_Serializer
     permission_classes = [IsAuthenticated]
 
+class store_return_to_warehouse_ViewSet(CustomCreateMixin, CustomDestroyMixin, CustomUpdateMixin, viewsets.ModelViewSet):
+    queryset = store_return_to_warehouse.objects.all()
+    serializer_class = store_return_to_warehouse_Serializer
+    permission_classes = [IsAuthenticated]
+    
+    @transaction.atomic
+    def create(self, request):
+        serializer = purchase_order_return_Serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            data = serializer.validated_data
+            adjustment_ids = data.get('adjustment_ids')
+            created_by = request.user
+
+            # Validate adjustments
+            valid_adjustments = inventory_adjustments.objects.filter(
+                id__in=adjustment_ids,
+                adjustment_type__in=['Unsold_items', 'Damage'],
+                is_processed=False
+            ).select_related('item')
+            
+            if valid_adjustments.count() != len(adjustment_ids):
+                invalid_ids = set(adjustment_ids) - set(valid_adjustments.values_list('id', flat=True))
+                return Response(
+                    {'error': f'Invalid or already processed adjustments: {invalid_ids}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            total_refund = Decimal('0')
+            return_items = []
+            vendor = None
+
+            for adj in valid_adjustments:
+                try:
+                    po_detail = purchase_order_detail.objects.filter(
+                        item=adj.item
+                    ).order_by('-purchase_order__created_at').first()
+                    
+                    if not po_detail:
+                        raise Exception(f"No purchase found for item {adj.item.id}")
+
+                    if not vendor:
+                        vendor = po_detail.purchase_order.vendor
+                    elif vendor != po_detail.purchase_order.vendor:
+                        return Response(
+                            {'error': 'All items must belong to same vendor'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    refund_amount = po_detail.price_per_piece * adj.quantity
+                    total_refund += refund_amount
+                    return_items.append({
+                        'item': adj.item,
+                        'quantity': adj.quantity,
+                        'price': po_detail.price_per_piece,
+                        'refund': refund_amount,
+                        'purchase_order': po_detail.purchase_order,
+                        'adjustment': adj
+                    })
+
+                except Exception as e:
+                    return Response(
+                        {'error': str(e)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            if not return_items:
+                return Response(
+                    {'error': 'No valid items found for processing'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create return records
+            try:
+                return_header = purchase_order_return.objects.create(
+                    purchase_orders=return_items[0]['purchase_order'],
+                    vendor=vendor,
+                    total_refund_amount=total_refund,
+                    created_at=timezone.now(),
+                    created_by=created_by
+                )
+
+                for item in return_items:
+                    purchase_order_return_detail.objects.create(
+                        return_purchase=return_header,
+                        purchase_order_detail=purchase_order_detail.objects.get(
+                            item=item['item'],
+                            purchase_order=item['purchase_order']
+                        ),
+                        return_quantity=item['quantity'],
+                        price_per_piece=item['price'],
+                        subtotal=item['refund'],
+                        created_at=timezone.now()
+                    )
+
+                    item['adjustment'].is_processed = True
+                    item['adjustment'].save()
+
+                # Process vendor refund
+                self._process_vendor_refund(vendor, total_refund)
+
+                return Response({
+                    'message': 'Purchase return processed successfully',
+                    'return_id': return_header.id,
+                    'total_refund': str(total_refund),
+                    'vendor_id': vendor.id,
+                    'vendor_name': vendor.vendor_name  
+                }, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                return Response(
+                    {'error': 'Failed to process return: ' + str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception as e:
+            return Response(
+                {'error': 'An unexpected error occurred: ' + str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class purchase_receipts_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = purchase_receipts.objects.all()
@@ -1287,8 +1728,7 @@ class sales_orders_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixi
     queryset = sales_orders.objects.all()
     serializer_class = sale_orders_Serializer
     permission_classes = [IsAuthenticated]
-    
-    
+        
 class sales_order_return_detail_ViewSet(CustomCreateMixin,CustomDestroyMixin,CustomUpdateMixin,viewsets.ModelViewSet):
     queryset = sales_order_return_detail.objects.all()
     serializer_class = sales_order_return_detail_Serializer
